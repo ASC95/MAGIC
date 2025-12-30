@@ -74,21 +74,81 @@ magic/
     can be retrieved as a DataFrame via `df = <hdf_file>.get(f'/building1/elec/{meter}')`. Each appliance has a meter labled as `meter2` - `meter21`,
     with `meter1` being the label for the whole house meter
 ### SMART-DS
-- The SMART-DS data is composed of three different circuits: rhs0_1247--rdt1527, rhs2_1247--rdt1262, and rhs2_1247--rdt1264
-  - rhs0_1247--rdt1527 has 1075 physical residential loads and 39 physical commercial loads
-    - It has 2150 OpenDSS residential loads and 62 OpenDSS commercial loads
-  - rhs2_1247--rdt1262 has 339 physical residential loads and 18 physical commercial loads
-    - It has 678 OpenDSS residential loads and 30 OpenDSS commercial loads
-  - rhs2_1247--rdt1264 has 571 physical residential loads and 83 physical commercial loads
-    - It has 1142 OpenDSS residential loads and 125 OpenDSS commercial loads
-- Each circuit is divided into three scenarios: the base case, the base case plus low PV (solar) and low BESS (battery), and the base case plus medium
-  PV and high BESS
+- The SMART-DS data is composed of three different feeders: rhs0_1247--rdt1527, rhs2_1247--rdt1262, and rhs2_1247--rdt1264
+  - rhs0_1247--rdt1527 
+    - It has 1075 customer residential loads and 39 customer commercial loads
+      - These are split into 2150 OpenDSS residential loads and 62 OpenDSS commercial loads
+        - It uses 189 unique residential per-unit load shapes and 29 unique commercial per-unit load shapes across the OpenDSS loads
+    - It has 112 OpenDSS fuse objects
+    - It has 605 OpenDSS transformer objects
+    - Low-PV, low-BESS configuration
+      - It has 164 residential PV installations
+      - It has 3 commercial PV installations
+      - It has 54 residential BESS installations
+      - It has 1 commercial BESS installations
+      - Total PV power capacity is 455 kVA
+      - Total BESS power capacity is 484 kVA
+      - Total BESS energy capacity is 880 kWh
+    - Medium-PV, high-BESS configuration
+      - It has 384 residential PV installations
+      - It has 5 commercial PV installations
+      - It has 438 residential BESS installations
+      - It has 6 commercial BESS installations
+      - Total PV power capacity is 1092 kVA
+      - Total BESS power capacity is 3907 kVA
+      - Total BESS energy capacity is 7104 kWh
+  - rhs2_1247--rdt1262 
+    - It has 339 customer residential loads and 18 customer commercial loads
+      - These are split into 678 OpenDSS residential loads and 30 OpenDSS commercial loads
+        - It uses 118 unique residential per-unit load shapes and 14 unique commercial per-unit load shapes across the OpenDSS loads
+    - It has 42 OpenDSS fuse objects
+    - It has 208 OpenDSS transformer objects
+    - Low-PV, low-BESS configuration
+      - It has 53 residential PV installations
+      - It has 0 commercial PV installations
+      - It has 17 residential BESS installations
+      - It has 0 commercial BESS installations
+      - Total PV power capacity is 144 kVA
+      - Total BESS power capacity is 149 kVA
+      - Total BESS energy capacity is 272 kWh
+    - Medium-PV, high-BESS configuration
+      - It has 122 residential PV installations
+      - It has 2 commercial PV installations
+      - It has 139 residential BESS installations
+      - It has 2 commercial BESS installations
+      - Total PV power capacity is 356 kVA
+      - Total BESS power capacity is 1240 kVA
+      - Total BESS energy capacity is 2256 kWh
+  - rhs2_1247--rdt1264 
+    - It has 571 customer residential loads and 83 customer commercial loads
+      - These are split into 1142 OpenDSS residential loads and 125 OpenDSS commercial loads
+        - It uses 156 unique residential per-unit load shapes and 44 unique commercial per-unit load shapes across the OpenDSS loads
+    - It has 77 OpenDSS fuse objects
+    - It has 408 OpenDSS transformer objects
+    - Low-PV, low-BESS configuration
+      - It has 93 residential PV installations
+      - It has 5 commercial PV installations
+      - It has 32 residential BESS installations
+      - It has 0 commercial BESS installations
+      - Total PV power capacity is 267 kVA
+      - Total BESS power capacity is 281 kVA
+      - Total BESS energy capacity is 512 kWh
+    - Medium-PV, high-BESS configuration
+      - It has 218 residential PV installations
+      - It has 10 commercial PV installations
+      - It has 250 residential BESS installations
+      - It has 10 commercial BESS installations
+      - Total PV power capacity is 621 kVA
+      - Total BESS power capacity is 2288 kVA
+      - Total BESS energy capacity is 4160 kWh
+- Each feeder has three scenarios: the base case, the base case plus low PV (solar) and low BESS (battery), and the base case plus medium PV and high
+  BESS
   - Each scenario has the following important files: Lines.dss, LoadShapes.dss, Loads.dss, Master.dss, Regulators.dss, and Transformers.dss
     - We are primarily interested in the Loads.dss file of each scenario. It contains a number of residential and commercial loads represented by
       OpenDSS load objects. Most of the OpenDSS loads in a given Loads.dss file have a "_1" or an "_2" suffix. These two suffixes represent a single
       customer load that is connected to a center-tap transformer. The customer load is divided equally between the active and neutral lines which
       results in two equal OpenDSS loads which are half of the total customer load.
-      - E.g. the rhs0_1247-rdt1527 circuit has two loads named "load_p1rlv1359_1" and "load_p1rlv1359_2". Both of these OpenDSS loads reference an
+      - E.g. the rhs0_1247-rdt1527 feeder has two loads named "load_p1rlv1359_1" and "load_p1rlv1359_2". Both of these OpenDSS loads reference an
         OpenDSS loadshape object called "res_kw_278_pu". That OpenDSS loadshape object references a CSV called "res_kw_278_pu.csv". The total load for
         the customer at building 278 at 2018-01-01 00:15:00 is calculated as follows:
         - Multiply the "kW" property of "load_p1rlv1359_1" by the first line of "res_kw_278_pu.csv": `3.9060227283575606 * 0.07488170653500545 =
@@ -98,11 +158,13 @@ magic/
         - Sum those values together to get the total customer load in kW: `0.29248964766 + 0.29248964766 = 0.5849792953`
           - This result can be validated by viewing the file "res_278.parquet" which has that same value in the "total_site_electricity_kw" column at
             2018-01-01 00:15:00
-- Each circuit has the exact same Loads.dss file for every scenario
+- Each feeder has the exact same Loads.dss file for every scenario
   - The low-PV, low-BESS scenario and the medium-PV, high-BESS scenario add OpenDSS PV and Storage objects, but they retain the same loads as in the
     base case scenario
-- Each circuit has a different LoadShape.dss for every scenario
+- Each feeder has a different LoadShape.dss for every scenario
   - This is because each scenario builds on top of the base_timeseries scenario by adding additional PV and BESS objects
+- Each of the three feeders uses a subset of the same 283 unique residential per-unit load shapes and a subset of the 112 unique commercial per-unit
+  load shapes to create load shapes for the OpenDSS loads
 ## Installation
 Create a virtual environment and install dependencies:
 ```bash
@@ -120,20 +182,26 @@ python install.py
   - `load_consumption`: whether the load is "constant" or "variable"
   - `load_timing`: whether the load is "intermittent", "periodic", or "continuous"
   - `name`: the name of the appliance
-  - `shapelet_end_W`: during model training, any watt value less than or equal to this value marks the end of a shapelet during shapelet detection
-  - `shapelet_length`: during model training, this is chosen length of all detected shapelets for the appliance
+  - `shapelet_end_W (int)`: during model training, any watt value less than or equal to this value marks the end of a shapelet during shapelet
+    detection
+    - Put another way, this is the maximum value that a reading can have which will mark the end of the "on" event. For example, if shapelet_end_W is
+      1 W, then 128 W -> 5 W would not trigger an "off" event, but 5 W -> 1 W would trigger an "off" event and mark the end of a shapelet.
+  - `shapelet_length (int)`: during model training, this is chosen length of all detected shapelets for the appliance
     - A longer length increases kl_loss during training and tends to slightly reduce prior sample accuracy
     - A shorter length creates less interesting and descriptive shapelets
-  - `shapelet_max_W`: during model training, any shapelet with a watt value greater than this is excluded from training the VAE model
+    - The length must be no less than 3 because every shapelet must have a starting value (i.e. the value before the shapelet was detected), the
+      actual shapelet value, and then the ending value (i.e. the value right after the shapelet ended)
+  - `shapelet_max_W (int)`: during model training, any shapelet with a watt value greater than this is excluded from training the VAE model
     - This is useful when an appliance has multiple states and we want the VAE model to accuractely represent one state of the appliance instead of
       mixing states together and creating an unrepresentative model that is a combined average of all of the possible appliance states
-  - `shapelet_prior_max_W`: during interpolation, any synthetic generated shapelet with an average watt value greater than this will be discarded
-    - Some appliance models have more variation in their output shapelets than desired, so we filter them
-  - `shapelet_prior_min_W`: during interpolation, any synthetic generated shapelet with an average watt value less than this will be discarded
-    - Some appliance models have more variation in their output shapelets than desired, so we filter them
   - `shapelet_sliding_window`: during model training, whether to use a sliding window to create more training data
     - Some appliance models are more accurate if they are trained on a sliding window view of the shapelets while others are less accurate
-  - `shapelet_start_W`: during model training, any watt value greater than or equal to this value marks the start of a shapelet during shapelet detection
+  - `shapelet_start_W (int)`: during model training, any watt value greater than or equal to this value marks the start of a shapelet during shapelet
+    detection
+    - Put another way, this is the minimum value that a reading can have which will mark the start of an "on" event. For example, if shapelet_start_W
+      is 100 W, then 0 W -> 99 W would not trigger an "on" event. While an "on" event is in-progress, all subsequent "on" events are ignored until an
+      "off" event is found (and the current "on" event is terminated). E.g. 0 W -> 100 W for a fridge creates an "on" event. Subsequent values > 100 W
+      are ignored until the "on" event is terminated.
   - `timeVAE_epochs`: during model training, this is the maximum number of training epochs that timeVAE should use when training the model
     - More epochs tends to smooth the sythentic generated shapelets of the model
     - Too many epcochs can lead to over-training which results in a model that outputs synthetic generated shapelets with too little variability
@@ -160,6 +228,18 @@ python train.py
     showing these visualizations increases training duration. If the user wants to visualize the quality of the trained model, set
     `show_training_figs` in `lib/timeVAE/timeVAE/config/config.yaml` to `true`
 ### Configure interpolation
+- Set interpolation parameters for each appliance in `src/interpolation/src/config/appliances.yaml`. The pre-configured values should work well for
+  basic usage and shouldn't need to be changed
+  - `shapelet_prior_max_W`: during interpolation, any synthetic generated shapelet with an average watt value greater than this will be discarded
+    - Some appliance models have more variation in their output shapelets than desired, so we filter them out
+  - `shapelet_prior_min_W`: during interpolation, any synthetic generated shapelet with an average watt value less than this will be discarded
+    - Some appliance models have more variation in their output shapelets than desired, so we filter them out
+    
+  - `shapelet_prior_repetition_max`: x
+    - x
+  - `shapelet_prior_repetition_min`: x
+    - x
+
 - Set interpolation parameters for each load in `src/interpolation/src/config/interpolation.yaml`. The pre-configured values should work well for
   basic usage and shouldn't need to be changed
   - `load_name`: whether to interpolate all loads in the feeder or to interpolate a single load in the feeder
@@ -174,20 +254,22 @@ python train.py
     load shape at any point in time
     - E.g. `threshold: 10` means that the interpolated 1-minute data will always be very close to the original 15-minute data. The interpolated data
       will be fairly smooth because the original data is also smooth
-  - `is_smooth`: whether to use synthetic generated shapelets whose standard deviation exceeds the standard deviation of the load shape that is being
-    interpolated
-    - E.g. `is_smooth: true` means that appliances with large standard deviations (e.g. the dryer) will almost never be used to interpolate the data
-      because most 15-minute OpenDSS load shapes are very smooth (i.e. have a low standard deviation) over short intervals. The result will be an
-      interpolated load shape with a very low standard deviation (i.e. it will have smooth, subtle oscillations)
-    - E.g. `is_smooth: false` means that any appliance can be used to interpolate a 15-minute load shape as long as the average value of the synthetic
-      generated shapelet does not exceed the average value of a given interval in the load shape. The result will be an interpolated load shape with a
-      much higher standard deviation (i.e. it will have jagged, severe oscillations)
-  - `is_fast`: whether to prioritize speed or variability in the interpolated load shape
-    - E.g. `is_fast: true` means that certain appliance models will be sampled for synthetic generated shapelets much more frequently than others. It
-      is faster to interpolate an interval by sampling repeatedly from a single model than by sampling from different models. However, certain
-      appliance models will be overrepresented in the interpolated load shape
-    - E.g. `is_fast: false` means that the interpolation process will try to use as many different appliance models to interpolate an interval of load
-      shape as possible. The interpolated load shape will contain a more balanced representation of appliance models
+
+  //- `is_smooth`: whether to use synthetic generated shapelets whose standard deviation exceeds the standard deviation of the load shape that is being
+  //  interpolated
+  //  - E.g. `is_smooth: true` means that appliances with large standard deviations (e.g. the dryer) will almost never be used to interpolate the data
+  //    because most 15-minute OpenDSS load shapes are very smooth (i.e. have a low standard deviation) over short intervals. The result will be an
+  //    interpolated load shape with a very low standard deviation (i.e. it will have smooth, subtle oscillations)
+  //  - E.g. `is_smooth: false` means that any appliance can be used to interpolate a 15-minute load shape as long as the average value of the synthetic
+  //    generated shapelet does not exceed the average value of a given interval in the load shape. The result will be an interpolated load shape with a
+  //    much higher standard deviation (i.e. it will have jagged, severe oscillations)
+  //- `is_fast`: whether to prioritize speed or variability in the interpolated load shape
+  //  - E.g. `is_fast: true` means that certain appliance models will be sampled for synthetic generated shapelets much more frequently than others. It
+  //    is faster to interpolate an interval by sampling repeatedly from a single model than by sampling from different models. However, certain
+  //    appliance models will be overrepresented in the interpolated load shape
+  //  - E.g. `is_fast: false` means that the interpolation process will try to use as many different appliance models to interpolate an interval of load
+  //    shape as possible. The interpolated load shape will contain a more balanced representation of appliance models
+
   - `feeder_path`: the path to the feeder that should be interpolated. It includes the substation name and feeder name. Note that the feeder must
     exist in `src/interpolation/data/smartds/2018/GSO/rural/scenarios/base_timeseries/opendss/`
   - `multiprocessing`: whether to use multiprocessing to interpolate many loads at the same time. Multiprocessing is faster than using a single

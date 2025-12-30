@@ -12,9 +12,6 @@ with open(timeVAE.paths.CFG_FILE_PATH) as f:
     config = yaml.safe_load(f)
 SHOW_TRAINING_FIGS = config['show_training_figs']
 
-#SHOW_TRAINING_FIGS = False # - Whether to show the plots created during training
-
-
 def plot_samples(
     samples1: np.ndarray,
     samples1_name: str,

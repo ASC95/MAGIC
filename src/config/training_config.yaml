@@ -1,0 +1,5 @@
+active_appliances: [dishwasher, dryer, fridge, garage, heat_pump, light16, light2]
+run_evaluation: true
+show_graph: true
+graph_end: null
+#graph_end: '2012-04-30 00:00'

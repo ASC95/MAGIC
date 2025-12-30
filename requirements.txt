@@ -13,7 +13,11 @@ pyyaml
 tensorflow
 matplotlib
 scikit-learn
-tables
+#tables                     # - Installs/requires numpy==1.26.4 for some reason. Solution: install pytables instead of tables
+pytables
 plotly
-# pip install pyarrow       # only needed for parquet support
-# pip install fastparquet   # only needed for parquet support
+seaborn                     # - Only needed for visualizing a probability density function (PDF)
+#kaleido                    # - Only needed for output pngs from circuit_stats.py
+# pip install pyarrow       # - Only needed for parquet support
+# pip install fastparquet   # - Only needed for parquet support
+# - pip install -e . timeVAE
