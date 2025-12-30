@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 import plotly.colors as pc
 
 import paths
+import visualize
 from smartds_load_builder import get_smartds_loadshapes
 from ampds2_load_builder import get_ampds2_loadshape
 
@@ -111,6 +112,9 @@ def main():
             valid_daily_windows=valid_daily_windows,
             valid_seasons=valid_seasons))
 
+    evaluate_ampds2_reconstruction(appliances)
+
+    '''
     # - Get SMART-DS data
     dss_file = paths.RDT1262_FILE_PATH
     loadshapes_dir = paths.LOADSHAPES_DIR
@@ -135,6 +139,7 @@ def main():
     accuracy_df = summarize_interpolation_accuracy(target_w_1, results_w)
     print(accuracy_df)
     plot_interpolation_results(target_w_1, results_w, results_df)
+    '''
 
 
 def forward_fill_load_shape(target_15min):
@@ -608,6 +613,58 @@ def summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd
     return df_summary
 
 
+def calculate_reconstruction_metrics(ground_truth: pd.Series, interpolated: pd.Series) -> pd.DataFrame:
+    """
+    Computes performance metrics (MAE, CV-MAE) between a ground truth load shape
+    and an interpolated load shape.
+
+    Args:
+        ground_truth: The original, measured 1-minute data (e.g., AMPds2).
+        interpolated: The synthetic 1-minute output from the greedy algorithm.
+
+    Returns:
+        pd.DataFrame: A single-row DataFrame containing the metrics.
+    """
+    # 1. Align Data
+    # Ensure we only compare timestamps that exist in both series
+    common_index = ground_truth.index.intersection(interpolated.index)
+    
+    if len(common_index) == 0:
+        print("Error: No overlapping timestamps found between ground truth and interpolation.")
+        return pd.DataFrame()
+
+    truth_aligned = ground_truth.loc[common_index]
+    interp_aligned = interpolated.loc[common_index]
+
+    # 2. Compute MAE (Mean Absolute Error)
+    # The average magnitude of the error in Watts
+    absolute_error = np.abs(truth_aligned - interp_aligned)
+    mae = np.mean(absolute_error)
+
+    # 3. Compute CV(MAE) (Coefficient of Variation of MAE)
+    # This normalizes the error relative to the average load.
+    # Formula: MAE / Mean(Ground Truth)
+    truth_mean = np.mean(truth_aligned)
+    
+    # Avoid division by zero
+    if truth_mean > 1e-9:
+        cv_mae = mae / truth_mean
+    else:
+        cv_mae = np.nan  # Undefined if the mean load is 0
+
+    # 4. Format Results
+    metrics = {
+        "Metric": ["Performance"],
+        "MAE (W)": [mae],
+        #"CV(MAE)": [cv_mae],  # Result is a ratio (e.g., 0.15 for 15%)
+        "CV(MAE) %": [cv_mae * 100],  # Result is a percentage (e.g., 15.0%)
+        "Ground Truth Mean (W)": [truth_mean],
+        "Points Evaluated": [len(common_index)]
+    }
+
+    return pd.DataFrame(metrics)
+
+
 def plot_interpolation_results(
     target_series: pd.Series, 
     result_series: pd.Series, 
@@ -705,9 +762,70 @@ def plot_interpolation_results(
 
 
 def compare_runs():
+    # - Used to inspect if appliance constraints are being respected
     df_1 = pd.read_csv(paths.OUTPUTS_DIR / 'interpolation_1500_2025-12-29 21:39:03')
     df_2 = pd.read_csv()
     pass
+
+
+def evaluate_ampds2_reconstruction(appliances: list, max_iterations=2000):
+    """
+    Runs a full validation experiment:
+    1. Loads real 1-minute data (AMPds2).
+    2. Downsamples it to 15-minute intervals (simulating utility data).
+    3. Runs Greedy Interpolation to reconstruct the 1-minute shape.
+    4. Compares the Reconstruction vs. The Original.
+    """
+    print("\n--- Starting AMPds2 Reconstruction Evaluation ---")
+
+    # 1. Load Ground Truth (1-minute)
+    # Note: Requires your ampds2_load_builder module
+    df_truth_1min = get_ampds2_loadshape()
+
+    
+    # Optional: Slice to a smaller window for faster testing if needed
+    # df_truth_1min = df_truth_1min['2018-01-01':'2018-01-07']
+    
+    # 2. Create Target (15-minute)
+    # Downsample to simulate the low-res input we would get from a utility
+    target_15min = df_truth_1min.resample('15min', label='left', closed='left').mean()
+    
+    # - Select a subset for testing
+    df_truth_1min = df_truth_1min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
+    target_15min = target_15min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
+
+    # 3. Prepare Target for Interpolation (Stepwise 1-minute)
+    # This creates the "Red Line" step function your interpolator expects
+    target_step_1min = forward_fill_load_shape(target_15min)
+
+    # 4. Run Interpolation
+    print(f"Interpolating {len(target_step_1min)} minutes of data...")
+    results_df, results_total_1min, log_df = greedy_interpolation(
+        target_series=target_step_1min, 
+        appliances=appliances, 
+        max_iterations=max_iterations
+    )
+
+    # 5. Evaluate Performance
+    metrics_df = calculate_reconstruction_metrics(
+        ground_truth=df_truth_1min, 
+        interpolated=results_total_1min
+    )
+    
+    # 6. Display Results
+    print("\nEvaluation Results:")
+    # Format for cleaner console output
+    pd.options.display.float_format = '{:.4f}'.format
+    #print(metrics_df.T) # Transpose for vertical readability
+    print(metrics_df)
+    visualize.save_metrics_table_png(metrics_df, 'ampds2_performance.png')
+    
+    # 7. Plot Comparison
+    # We pass the results_df to your existing plotter
+    plot_interpolation_results(target_step_1min, results_total_1min, results_df)
+    plot_interpolation_results(df_truth_1min, results_total_1min, results_df)
+    
+    return metrics_df
 
 
 if __name__ == '__main__':
