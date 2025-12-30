@@ -67,7 +67,7 @@ hvac: # FAIL
   timeVAE_epochs: 10
 # - Has 3 states: low oscillations, medium periods of consumption, and large spikes
 light16:
-  load_model: foobar
+  load_model: on/off
   name: light16
   shapelet_end_W: 15
   shapelet_max_len: 3

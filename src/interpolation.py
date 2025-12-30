@@ -14,6 +14,7 @@ import plotly.colors as pc
 
 import paths
 from smartds_load_builder import get_smartds_loadshapes
+from ampds2_load_builder import get_ampds2_loadshape
 
 
 @dataclass
@@ -96,11 +97,11 @@ def main():
         num_instances = 1
         valid_daily_windows = None
         valid_seasons = None
-        if name == 'dryer':
-            valid_daily_windows = [("06:00", "08:00")]
-        if name == 'heat_pump':
-            num_instances = 2
-            valid_seasons = [('09-01', '01-01')]
+        #if name == 'dryer':
+        #    valid_daily_windows = [("06:00", "08:00")]
+        #if name == 'heat_pump':
+        #    num_instances = 2
+        #    valid_seasons = [('09-01', '01-01')]
 
         appliances.append(load_appliance_from_vae(
             directory=paths.VAE_SHAPELETS_OUTPUTS_DIR,
@@ -114,35 +115,38 @@ def main():
     dss_file = paths.RDT1262_FILE_PATH
     loadshapes_dir = paths.LOADSHAPES_DIR
     df = get_smartds_loadshapes(dss_file, loadshapes_dir)
+    # - Grab a subset of data for visualiation
+    df = df['2018-01-03 00:00:00':'2018-01-03 12:45:00']
     # - Scale to W instead of kW
     df *= 1000
     load_name = 'load_p1rlv630'
-    target_w = df['Residential', load_name]
+    target_w_15 = df['Residential', load_name]
     # - Stepwise interpolation to 1-minute intervals
-    target_w = scale_load_shape(target_w)
+    target_w_1 = forward_fill_load_shape(target_w_15)
 
     # - Perform interpolation
-    max_iterations = 1500
-    results_df, results_w, log_df = greedy_interpolation(target_w, appliances, max_iterations)
+    max_iterations = 2000
+    results_df, results_w, log_df = greedy_interpolation(target_w_1, appliances, max_iterations)
 
     # - save results_df to file to check consecutive runs
-    results_df.to_csv(paths.OUTPUTS_DIR / f'{load_name}_{max_iterations}_{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    #results_df.to_csv(paths.OUTPUTS_DIR / 'interpolation_runs' / f'{load_name}_{max_iterations}_{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
     verify_capacity_constraints_greedy(log_df, appliances)
-    accuracy_df = summarize_interpolation_accuracy(target_w, results_w)
+    accuracy_df = summarize_interpolation_accuracy(target_w_1, results_w)
     print(accuracy_df)
-    plot_interpolation_results(target_w, results_w, results_df)
+    plot_interpolation_results(target_w_1, results_w, results_df)
 
 
-def scale_load_shape(target_15min):
+def forward_fill_load_shape(target_15min):
     assert isinstance(target_15min, pd.Series)
     # - Reindex 15-minute interval data to 1-minute data in a forward-fill fashion because each 15-minute interval reading represents the average of
     #   the subsequent 15-minute interval of power consumption (not an instantaneous reading taken every 15 minutes)
     # 1. Define the Start and exact End time you want
     # Assuming your data covers a single day, e.g., '2024-01-01'
     start_time = target_15min.index[0]
-    # Explicitly set the end to 23:59:00 of the last day in your data
-    end_time = target_15min.index[-1].replace(hour=23, minute=59, second=0)
+    # Explicitly set the end to the last minute of the last day in your data
+    last_hour = target_15min.index[-1].hour
+    end_time = target_15min.index[-1].replace(hour=last_hour, minute=59, second=0)
 
     # 2. Create the full 1-minute index
     full_1min_index = pd.date_range(start=start_time, end=end_time, freq='1min')
@@ -309,7 +313,7 @@ def check_time_constraints(times: pd.DatetimeIndex, app):
 def greedy_interpolation(
     target_series: pd.Series, 
     appliances: list, 
-    max_iterations=2000, 
+    max_iterations, 
     error_threshold=10.0,
     seed=None):
     if seed is not None:
@@ -399,6 +403,10 @@ def greedy_interpolation(
                 best_round_move = (app, entry['idx'], entry['pat_idx'], entry['pattern_len'])
 
         # --- EXECUTE PHASE ---
+        # - best_round_score represents the net error reduction. If it is positive, then the net error will decrease by at least 0.1 W as a result of
+        #   adding the shapelet
+        # - If it looks like there is space to add more appliances in the interpolation output, they probably aren't being added because of the
+        #   appliance constraints
         if best_round_move and best_round_score > 0.1:
             winner_app, start_idx, pat_idx, duration = best_round_move
             pattern = winner_app.patterns[pat_idx]
@@ -561,6 +569,7 @@ def summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd
                       ['Timestamp', 'Target_kW', 'Interp_Mean_kW', 'Error_kW']
     """
     summary_data = []
+    differences = []
 
     # Iterate through each 15-minute block in the target
     for timestamp, target_val in target_series.items():
@@ -581,6 +590,7 @@ def summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd
         
         # Calculate error (Positive means Target was higher than Interpolation)
         difference = target_val - interp_mean
+        differences.append(difference)
         
         summary_data.append({
             "Timestamp": timestamp,
@@ -646,7 +656,7 @@ def plot_interpolation_results(
         y=result_series.values,
         mode='lines',
         name='Total Interpolated',
-        line=dict(color='black', width=2.5, dash='dash'),
+        line=dict(color='black', width=2.5, dash='solid'),
     ))
 
     # Target (Red Step Line)
@@ -679,7 +689,10 @@ def plot_interpolation_results(
     fig.update_layout(
         title="Interpolation Results: Target vs. Appliance Stack",
         xaxis_title="Time",
-        yaxis_title="Power (kW)",
+
+        #yaxis_title="Power (kW)",
+        yaxis_title="Power (W)",
+
         hovermode="x unified",
         legend=dict(yanchor="top", y=1, xanchor="left", x=1.02), # Legend outside right
         margin=dict(r=150) # Right margin for legend

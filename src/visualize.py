@@ -10,7 +10,7 @@ from data_processor import ShapeletProcessor
 
 def main():
     # - Examine an appliance
-    appliance_name = 'light2'
+    appliance_name = 'light16'
     with open(paths.APPLIANCES_FILE_PATH) as f:
         app_full_config = yaml.safe_load(f)
     with open(paths.TRAINING_CONFIG_FILE_PATH) as f:
@@ -32,13 +32,24 @@ def save_metrics_table_png(df: pd.DataFrame, filename: str = "evaluation_summary
         print("No data to save for table.")
         return
 
+    # --- TRANSPOSE & FORMAT ---
+    # Transpose so columns become rows
+    df_t = df.T
+    # The original column headers are now the 'index'. 
+    # We must reset_index() to move them into a standard data column.
+    df_t.reset_index(inplace=True)
+    # Rename that new column to "Metric" (or "Parameter")
+    df_t.rename(columns={'index': 'Metric'}, inplace=True)
+    # Use this processed dataframe for plotting
+    plot_df = df_t
+
     # Define layout for table
     fig = go.Figure(data=[go.Table(
-        header=dict(values=list(df.columns),
+        header=dict(values=list(plot_df.columns),
                     fill_color='paleturquoise',
                     align='left',
                     font=dict(size=12, color='black')),
-        cells=dict(values=[df[k].tolist() for k in df.columns],
+        cells=dict(values=[plot_df[k].tolist() for k in plot_df.columns],
                    fill_color='lavender',
                    align='left',
                    font=dict(size=11, color='black'))
@@ -46,7 +57,7 @@ def save_metrics_table_png(df: pd.DataFrame, filename: str = "evaluation_summary
 
     fig.update_layout(
         title="<b>VAE Evaluation Summary Metrics</b>",
-        width=1600, # Wide enough to fit all 12 columns
+        width=1000, # Wide enough to fit all 12 columns
         height=400 + (len(df) * 30) # Dynamic height
     )
 

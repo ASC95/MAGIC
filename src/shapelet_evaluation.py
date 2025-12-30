@@ -12,10 +12,10 @@ class ComprehensiveEvaluator:
         self.best_worst_matches = {}
 
     def compute_all_metrics(self, 
-                          real_shapelets: List[np.ndarray], 
-                          vae_shapelets: List[np.ndarray], 
-                          appliance_config: dict,
-                          max_samples: int = 100):
+        real_shapelets: List[np.ndarray], 
+        vae_shapelets: List[np.ndarray], 
+        appliance_config: dict,
+        max_samples: int = 100):
         """
         Computes all statistics for the summary table and identifies Best/Worst matches.
         """
@@ -111,9 +111,9 @@ class ComprehensiveEvaluator:
             'Count Syn':        f'{len(vae_sub):.2f}',
             'Mean Len Real':    f'{round(real_mean_len)}',
             'Mean Len Syn':     f'{round(vae_mean_len)}',
-            'Real-Real DTW':    f'{round(real_real_dtw, 2):.2f}',
-            'Syn-Syn DTW':      f'{round(syn_syn_dtw, 2):.2f}',
-            'Real-Syn DTW':     f'{round(real_syn_dtw, 2):.2f}',
+            'Mean Real-Real DTW':    f'{round(real_real_dtw, 2):.2f}',
+            'Mean Syn-Syn DTW':      f'{round(syn_syn_dtw, 2):.2f}',
+            'Mean Real-Syn DTW':     f'{round(real_syn_dtw, 2):.2f}',
             'Mean Val Real':    f'{round(avg_real_mean, 2):.2f}',
             'Mean Val Syn':     f'{round(avg_vae_mean, 2):.2f}',
             #'Diff Mean':        f'{round(abs(avg_real_mean - avg_vae_mean), 2):.2f}',
@@ -131,3 +131,5 @@ class ComprehensiveEvaluator:
 
     def get_best_worst_data(self, appliance_name: str) -> Dict:
         return self.best_worst_matches.get(appliance_name, {})
+
+    # Can't fairly compute coefficient of variation of mean absolute error for ragged arrays
