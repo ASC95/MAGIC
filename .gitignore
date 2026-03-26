@@ -2,7 +2,7 @@
 .DS_Store
 *.code-workspace
 log.txt
-src/data/ampds2/AMPds2.h5
+AMPds2.h5
 src/outputs
 # - Directories
 .vscode/
