@@ -12,7 +12,7 @@ def main():
     df_result = get_smartds_loadshapes(dss_file, csv_dir)
 
 
-def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 2018) -> pd.DataFrame:
+def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 2018, mode: str = 'loads') -> pd.DataFrame:
     """
     Parses a Loads.dss file and a directory of per-unit load profiles to generate 
     actual kW load shapes. 
@@ -28,26 +28,22 @@ def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 20
         year (int): The year for the timestamp index (default 2018).
 
     Returns:
-        pd.DataFrame: A DataFrame where columns are MultiIndex (Type, Name) and 
-                      index is 15-minute timestamps.
+        tuple: (A DataFrame where columns are MultiIndex (Type, Name) and index is 15-minute timestamps, A dict of kW bases)
     """
     dss_path = Path(dss_file_path)
     profiles_path = Path(profiles_dir)
-
     # 1. Parse the DSS file to extract load definitions
     print(f"Parsing DSS file: {dss_path.name}...")
     load_definitions = _parse_dss_loads(dss_path)
-
     # 2. Identify unique profiles needed and load them into memory (Cache)
     unique_profile_names = {load['profile'] for load in load_definitions}
     print(f"Loading {len(unique_profile_names)} unique profile shapes...")
     profile_cache = _load_profiles_into_memory(profiles_path, unique_profile_names)
-
     # 3. Calculate actual kW, Aggregate split-phase loads, and Track Types
     print("Calculating and aggregating load shapes...")
     aggregated_data = {}
     load_types = {}  # Map base_name -> 'Residential' | 'Commercial' | 'Other'
-    
+    kw_bases = {}
     # Expected rows: 35040 for non-leap year (365 days * 96 intervals)
     expected_length = 35040 
 
@@ -55,10 +51,8 @@ def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 20
         raw_name = load_def['name']
         kw_base = load_def['kw']
         profile_name = load_def['profile']
-
         # Determine the canonical base name (merging _1 and _2)
         base_name = _get_base_load_name(raw_name)
-        
         # Determine Load Type based on profile prefix
         p_lower = profile_name.lower()
         if p_lower.startswith('res_'):
@@ -67,28 +61,46 @@ def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 20
             l_type = 'Commercial'
         else:
             l_type = 'Other'
-
         # Store the type (Last writer wins, but split-phases should be identical)
         load_types[base_name] = l_type
-
         if profile_name not in profile_cache:
             print(f"Warning: Profile '{profile_name}' not found for load '{raw_name}'. Skipping.")
             continue
-        
         # Get PU array and calculate actual kW
         pu_array = profile_cache[profile_name]
-        
         # Simple length check
         if len(pu_array) != expected_length:
             pass # Handle mismatches if necessary
-
         actual_kw_shape = pu_array * kw_base
-
         # Aggregate (Sum) for split phases
         if base_name in aggregated_data:
-            aggregated_data[base_name] += actual_kw_shape
+            aggregated_data[base_name]['actual_kw_shape'] += actual_kw_shape
+            kw_bases[base_name] += kw_base
         else:
-            aggregated_data[base_name] = actual_kw_shape
+            aggregated_data[base_name] = {
+                'actual_kw_shape': actual_kw_shape,
+                'profile_name': profile_name,
+                'load_type': load_types[base_name],
+            }
+            kw_bases[base_name] = kw_base
+    
+    # - If we want a DataFrame of loads, revert back to the original dict format
+    if mode == 'loads':
+        aggregated_data = {k: v['actual_kw_shape'] for k, v in aggregated_data.items()}
+    # - If we want a DataFrame of per-unit load shapes, modify "aggregated_data"
+    elif mode == 'pu':
+        aggregated_data_pu = {}
+        load_types_pu = {}
+        kw_bases_pu = {}
+        for k, d in aggregated_data.items():
+            profile_name = d['profile_name']
+            if profile_name not in aggregated_data_pu:
+                aggregated_data_pu[profile_name] = d['actual_kw_shape']
+                load_types_pu[profile_name] = d['load_type']
+                kw_bases_pu[profile_name] = kw_bases[k]
+        aggregated_data = aggregated_data_pu
+        load_types = load_types_pu
+        kw_bases = kw_bases_pu
 
     # 4. Construct Final DataFrame with MultiIndex
     print("Constructing DataFrame...")
@@ -122,7 +134,7 @@ def get_smartds_loadshapes(dss_file_path: str, profiles_dir: str, year: int = 20
     df_loads = df_loads.sort_index(axis=1)
 
     print(f"Successfully generated load shapes for {len(df_loads.columns)} unique loads.")
-    return df_loads
+    return df_loads, kw_bases
 
 
 def _parse_dss_loads(dss_path: Path) -> List[Dict]:

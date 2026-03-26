@@ -3,22 +3,20 @@
 dishwasher:
   load_model: composite
   name: dishwasher
-  shapelet_end_W: 200
-  shapelet_max_len: null
-  shapelet_max_W: 900
-  shapelet_min_len: 20
-  #shapelet_sliding_window: false  # - Using a sliding window decreases magnitude variation (good), smooths shapelets (bad), and makes bad shapelets (bad)
-  shapelet_start_W: 500
+  shapelet_end_W: 250 # - 24 shapelets at 300, 95 shapelets at 250
+  shapelet_max_len: 40
+  shapelet_max_W: 800
+  shapelet_min_len: 35
+  shapelet_start_W: 650
   timeVAE_epochs: 10
 # - Has 4 states: an initial period of consumption followed by 3 spikes
 dryer:
   load_model: composite
   name: dryer
   shapelet_end_W: 500
-  shapelet_max_len: null
-  shapelet_max_W: 5500
-  shapelet_min_len: 15
-  #shapelet_sliding_window: true # - Using a sliding window decreases magnitude variation (good) and un-smooths shapelets (good)
+  shapelet_max_len: 25
+  shapelet_max_W: 5000
+  shapelet_min_len: 20
   shapelet_start_W: 1000
   timeVAE_epochs: 15
 # - Has 2 states: medium oscillations and huge spikes
@@ -29,7 +27,6 @@ fridge:
   shapelet_max_len: 20
   shapelet_max_W: 300
   shapelet_min_len: 7
-  #shapelet_sliding_window: true # - Using a sliding window creates less magnitude variation (good). It also makes the shapelets smoother (good)
   shapelet_start_W: 100
   timeVAE_epochs: 3
 # - Has two states: low oscillations and huge spikes
@@ -40,7 +37,6 @@ garage:
   shapelet_max_len: 6
   shapelet_max_W: 50              # - None creates in-between shapelets that aren't realistic. 120 creates shapelets that are a little less than preferred. 600 creates good variation
   shapelet_min_len: 3
-  #shapelet_sliding_window: false  # - Don't use a sliding window because there are too many shapelets
   shapelet_start_W: 2
   timeVAE_epochs: 3
 # - Has 2 states: periods of high consumption that sometimes end with large spikes
@@ -50,19 +46,17 @@ heat_pump:
   shapelet_end_W: 900
   shapelet_max_len: 30
   shapelet_max_W: 2000
-  shapelet_min_len: 10
-  #shapelet_sliding_window: false
+  shapelet_min_len: 28
   shapelet_start_W: 1000
   timeVAE_epochs: 15
 # - Has 2 states: medium oscillations and large oscillations. Sometimes they stack. Problem is, mean of the whole load shape changes over time
-hvac: # FAIL
+hvac:
   load_model: min/max
   name: hvac
   shapelet_end_W: 108
-  shapelet_max_len: 40
-  shapelet_max_W: 4000
+  shapelet_max_len: 10
+  shapelet_max_W: 150
   shapelet_min_len: 10
-  #shapelet_sliding_window: false  # - Don't use sliding windows because there are too many shapelets
   shapelet_start_W: 110
   timeVAE_epochs: 10
 # - Has 3 states: low oscillations, medium periods of consumption, and large spikes
@@ -73,188 +67,136 @@ light16:
   shapelet_max_len: 3
   shapelet_max_W: null
   shapelet_min_len: 3
-  #shapelet_sliding_window: false  # - Don't use a sliding window because there are too many shapelets
   shapelet_start_W: 18
   timeVAE_epochs: 3
 # - Has 2 states: low power and high power
 light2:
   load_model: on/off
   name: light2
-  shapelet_end_W: 0
-  shapelet_max_len: 45
+  shapelet_end_W: 20
+  shapelet_max_len: 15
   shapelet_max_W: 30
-  shapelet_min_len: 15
-  #shapelet_sliding_window: true
-  shapelet_start_W: 15
+  shapelet_min_len: 14
+  shapelet_start_W: 20
   timeVAE_epochs: 10
-
-
 # - Has at least 4 states: low power oscillations, medium spikes, medium consumption periods, and huge spikes
 light3:
-  load_consumption: variable
-  load_timing: intermittent
+  load_model: on/off
   name: light3
-  shapelet_end_W: 10
-  shapelet_length: 60
-  shapelet_max_W: 250
-  shapelet_prior_max_W: 150
-  shapelet_prior_min_W: 40
-  shapelet_sliding_window: false  # - Using a sliding window does not change magnitude variation (good) and smooths shapelets (bad)
-  shapelet_start_W: 30
+  shapelet_end_W: 7
+  shapelet_max_len: 3
+  shapelet_max_W: 20
+  shapelet_min_len: 3
+  shapelet_start_W: 7
   timeVAE_epochs: 10
-  timeVAE_latent_dim: 2
 # - Has 4 states: low power oscillations, medium spikes, medium consumption periods, and huge spikes
 light4:
-  load_consumption: constant
-  load_timing: intermittent
+  load_model: on/off
   name: light4
-  shapelet_end_W: 100
-  shapelet_length: 60
-  shapelet_max_W: 500
-  shapelet_prior_max_W: 400
-  shapelet_prior_min_W: 300
-  shapelet_sliding_window: true # - Using a sliding window decreases variation (good) and smooths shapelets (good)
-  shapelet_start_W: 200
+  shapelet_end_W: 310
+  shapelet_max_len: 65
+  shapelet_max_W: 350
+  shapelet_min_len: 63
+  shapelet_start_W: 320
   timeVAE_epochs: 10
-  timeVAE_latent_dim: 2
 # - Has 3 states: low constant consumption, large periods of consumption, and large spikes combined together
 oven:
-  load_consumption: constant      # - It's actually variable but I model it as constant
-  load_timing: intermittent
+  load_model: composite
   name: oven
   shapelet_end_W: 500
-  shapelet_length: 10
-  shapelet_max_W: null            # - A few prior samples are WAY too large. Setting this value doesn't help very much. I need to filter prior samples in the future
-  shapelet_prior_max_W: 3100
-  shapelet_prior_min_W: 2800
-  shapelet_sliding_window: false  # - Using a sliding window increases magnitude variation (bad) and un-smooths shapelets (bad)
+  shapelet_max_len: 15
+  shapelet_max_W: 3900
+  shapelet_min_len: 10
   shapelet_start_W: 1000
   timeVAE_epochs: 30
-  timeVAE_latent_dim: 2
 # - This "appliance" has a LOT of states. I chose to extract the short periods of extremely large consumption
 rental_suite:
-  load_consumption: constant    # - It's actually variable but I model it as constant
-  load_timing: intermittent     # - This load is very complex. It has continuous, periodic, and intermittent consumption but I model it as intermittent
+  load_model: composite
   name: rental_suite
   shapelet_end_W: 450
-  shapelet_length: 3            # - 45 minute shapelet is too messy, even with a sliding window
-  shapelet_max_W: null
-  shapelet_prior_max_W: 1600
-  shapelet_prior_min_W: 1300
-  shapelet_sliding_window: true # - Using a sliding window increases magnitude variation (good) and smooths shapelets with a longer duration (good)
+  shapelet_max_len: 10 # 3
+  shapelet_max_W: 3500
+  shapelet_min_len: 8
   shapelet_start_W: 550
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - All shaplets are basically the same unfortunatley, but the actual load shape is also extremely repetitive so it's okay. I could set a minimum
 #   value to modify the shapelet when it is retrieved to stop it from dropping to 0, but it's probably better to work on level 2 shapelets
 security:
-  load_consumption: constant
-  load_timing: continuous
+  load_model: min/max
   name: security
   shapelet_end_W: 35
-  shapelet_length: 20
-  shapelet_max_W: null
-  shapelet_prior_max_W: 50
-  shapelet_prior_min_W: 30
-  shapelet_sliding_window: false  # - Using a sliding window decreases magnitude (bad) and smooths shapelets (bad)
+  shapelet_max_len: 18
+  shapelet_max_W: 55
+  shapelet_min_len: 15
   shapelet_start_W: 40
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - Has two state: tiny spikes and tiny periods of consumption
 sockets17:
-  load_consumption: constant      # - It's actually variable but I model it as constant
-  load_timing: intermittent
+  load_model: on/off
   name: sockets17
   shapelet_end_W: 0
-  shapelet_length: 2
+  shapelet_max_len: 3
   shapelet_max_W: 50
-  shapelet_prior_max_W: 2
-  shapelet_prior_min_W: 0.5
-  shapelet_sliding_window: false
+  shapelet_min_len: 3
   shapelet_start_W: 1
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - Has 3 states: low oscillations, medium oscillations, and spikes
 sockets20:
-  load_consumption: constant      # - It's actually variable (kind of) but I model it as constant
-  load_timing: continuous
+  load_model: on/off
   name: sockets20
-  shapelet_end_W: 49
-  shapelet_length: 10
-  shapelet_max_W: null
-  shapelet_prior_max_W: 60
-  shapelet_prior_min_W: 40
-  shapelet_sliding_window: false  # - Don't use a sliding window because it creates too many shapelets
+  shapelet_end_W: 50
+  shapelet_max_len: 12
+  shapelet_max_W: 60
+  shapelet_min_len: 10
   shapelet_start_W: 50
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - Has 3 states: initial spike, second spike, then step-wise decrease
 sockets7:
-  load_consumption: variable
-  load_timing: intermittent
+  load_model: on/off
   name: sockets7
   shapelet_end_W: 0
-  shapelet_length: 180
+  shapelet_max_len: 4
   shapelet_max_W: null
-  shapelet_prior_max_W: 30
-  shapelet_prior_min_W: 9
-  shapelet_sliding_window: true # - Using a sliding window decreases magnitude variation (bad) and smooths shapelets (good)
-  shapelet_start_W: 10
+  shapelet_min_len: 3
+  shapelet_start_W: 1
   timeVAE_epochs: 10
-  timeVAE_latent_dim: 2
 # - This appliance has the most erratic shape. My shapelets are messy but they're correct
 television:
-  load_consumption: variable
-  load_timing: intermittent
+  load_model: random range
   name: television
   shapelet_end_W: 50
-  shapelet_length: 60
-  shapelet_max_W: null
-  shapelet_prior_max_W: 500
-  shapelet_prior_min_W: 250
-  shapelet_sliding_window: false  # - Using a sliding window reduces magnitude (bad) without changing magnitude variation, and smooths shapelets (bad)
-  shapelet_start_W: 100
+  shapelet_max_len: 70
+  shapelet_max_W: 400
+  shapelet_min_len: 60
+  shapelet_start_W: 50
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - Has 3 states: smooth period of medium consumption, jagged period of consumption, then a period of large consumption, but it's pretty iffy
 washer:
-  load_consumption: variable
-  load_timing: intermittent
+  load_model: composite
   name: washer
   shapelet_end_W: 0
-  shapelet_length: 60
-  shapelet_max_W: null
-  shapelet_prior_max_W: 200
-  shapelet_prior_min_W: 150
-  shapelet_sliding_window: true # - Using a sliding window increases magnitude variation (good) and smooths shapelets (bad)
+  shapelet_max_len: 65
+  shapelet_max_W: 1100
+  shapelet_min_len: 55
   shapelet_start_W: 5
-  timeVAE_epochs: 20            # - 15 epochs creates a much larger and more realistic tail spike than 10 epochs. 15 to 20 epochs isn't as much of a difference, but 20 is better
-  timeVAE_latent_dim: 2
+  timeVAE_epochs: 20
 # - Has 4 states: very few low oscillations, medium spikes, medium periods of consumption, and high spikes
 water_heater:
-  load_consumption: constant
-  load_timing: intermittent     # - It's actually continuous but I model it as intermittent
+  load_model: min/max
   name: water_heater
   shapelet_end_W: 5
-  shapelet_length: 5
-  shapelet_max_W: null
-  shapelet_prior_max_W: 40
-  shapelet_prior_min_W: 20
-  shapelet_sliding_window: true # - Using a sliding window doesn't change the magnitude (good) and smooths shapelets (good)
+  shapelet_max_len: 5
+  shapelet_max_W: 40
+  shapelet_min_len: 3
   shapelet_start_W: 15
   timeVAE_epochs: 3
-  timeVAE_latent_dim: 2
 # - Has 3 states: low power oscillations, periods of medium consumption, and spikes
 workbench:
-  load_consumption: variable
-  load_timing: intermittent
+  load_model: on/off
   name: workbench
-  shapelet_end_W: 30
-  shapelet_length: 30
-  shapelet_max_W: 350
-  shapelet_prior_max_W: 130
-  shapelet_prior_min_W: 70
-  shapelet_sliding_window: false  # - Using a sliding window decreases magnitude variation (bad) and smooths shapelets (bad)
-  shapelet_start_W: 40
+  shapelet_end_W: 25
+  shapelet_max_len: 5
+  shapelet_max_W: 75
+  shapelet_min_len: 3
+  shapelet_start_W: 25
   timeVAE_epochs: 10
-  timeVAE_latent_dim: 2

@@ -10,7 +10,7 @@ from data_processor import ShapeletProcessor
 
 def main():
     # - Examine an appliance
-    appliance_name = 'light16'
+    appliance_name = 'workbench'
     with open(paths.APPLIANCES_FILE_PATH) as f:
         app_full_config = yaml.safe_load(f)
     with open(paths.TRAINING_CONFIG_FILE_PATH) as f:
@@ -24,7 +24,7 @@ def main():
     graph_appliance_timeline(appliance_name, df_raw, df_viz, df_viz, graph_end)
 
 
-def save_metrics_table_png(df: pd.DataFrame, filename: str = "evaluation_summary.png"):
+def save_metrics_table_png(df: pd.DataFrame, filename: str, width):
     """
     Renders the metrics DataFrame as a high-quality table and saves to PNG.
     """
@@ -57,11 +57,15 @@ def save_metrics_table_png(df: pd.DataFrame, filename: str = "evaluation_summary
 
     fig.update_layout(
         title="<b>VAE Evaluation Summary Metrics</b>",
-        width=1000, # Wide enough to fit all 12 columns
+        #width=1000, # Wide enough to fit all 20 columns
+        #width=1600, # Wide enough to fit all 20 columns
+        #width=2000, # Wide enough to fit all 20 columns
+        width=width, # Wide enough to fit all 20 columns
         height=400 + (len(df) * 30) # Dynamic height
     )
 
-    output_path = paths.OUTPUTS_DIR / filename
+    #output_path = paths.OUTPUTS_DIR / 'upsampling_performance' / filename
+    output_path = paths.OUTPUTS_DIR / 'upsampling_performance' / 'max_accuracy' / filename
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Requires 'kaleido' package
@@ -79,29 +83,46 @@ def plot_best_worst_matches(appliance_name: str, match_data: dict):
     worst_vae = match_data['worst_vae']
     worst_real = match_data['worst_real']
 
-    fig = make_subplots(rows=1, cols=2, 
-                        subplot_titles=(f"Best Match (DTW: {match_data['best_dist']:.2f})", 
-                                        f"Worst Match (DTW: {match_data['worst_dist']:.2f})"))
+    fig = make_subplots(
+        rows=1,
+        cols=2, 
+        subplot_titles=(
+            f"Best Match (DTW: {match_data['best_dist']:.2f})", 
+            f"Worst Match (DTW: {match_data['worst_dist']:.2f})"))
 
     # --- Plot Best Match ---
-    fig.add_trace(go.Scatter(y=best_real, mode='lines', name='Nearest Real',
-                             line=dict(color='blue', dash='dot'), showlegend=True), row=1, col=1)
-    fig.add_trace(go.Scatter(y=best_vae, mode='lines', name='Synthetic',
-                             line=dict(color='green', width=2), showlegend=True), row=1, col=1)
-
+    fig.add_trace(go.Scatter(y=best_real, mode='lines', name='Nearest Real', line=dict(color='blue', dash='dot'), showlegend=True), row=1, col=1)
+    fig.add_trace(go.Scatter(y=best_vae, mode='lines', name='Synthetic', line=dict(color='green', width=2), showlegend=True), row=1, col=1)
     # --- Plot Worst Match ---
-    fig.add_trace(go.Scatter(y=worst_real, mode='lines', name='Nearest Real',
-                             line=dict(color='blue', dash='dot'), showlegend=False), row=1, col=2)
-    fig.add_trace(go.Scatter(y=worst_vae, mode='lines', name='Synthetic',
-                             line=dict(color='red', width=2), showlegend=True), row=1, col=2)
-
+    fig.add_trace(go.Scatter(y=worst_real, mode='lines', name='Nearest Real', line=dict(color='blue', dash='dot'), showlegend=False), row=1, col=2)
+    fig.add_trace(go.Scatter(y=worst_vae, mode='lines', name='Synthetic', line=dict(color='red', width=2), showlegend=True), row=1, col=2)
     fig.update_layout(
-        title=f"<b>{appliance_name}: Synthetic Fidelity Check</b>",
+        # - Set global font size
+        font=dict(family="Arial", size=20, color="black"),
         template='plotly_white',
+        title=dict(text=f'{appliance_name} best and worst DTW distances', xanchor='center', x=0.5), 
+        title_font=dict(family='Arial'),
+        legend=dict(font=dict(color="black")),
         height=500,
-        width=1200
-    )
-
+        width=1200)
+    # - Set subplot font size
+    fig.update_annotations(font_size=20)
+    fig.update_yaxes(
+        title_text="Watts",
+        row=1,
+        col=1)
+    fig.update_yaxes(
+        title_text="Watts",
+        row=1,
+        col=2)
+    fig.update_xaxes(
+        title_text="Minutes",
+        row=1,
+        col=1)
+    fig.update_xaxes(
+        title_text="Minutes",
+        row=1,
+        col=2)
     fig.update_yaxes(rangemode="tozero")
     
     # Save or Show
@@ -110,10 +131,10 @@ def plot_best_worst_matches(appliance_name: str, match_data: dict):
     fig.show()
 
 def graph_appliance_timeline(appliance_name: str, 
-                    df_actual: pd.DataFrame, 
-                    df_shapelet: pd.DataFrame, 
-                    df_prior: pd.DataFrame,
-                    graph_end):
+    df_actual: pd.DataFrame, 
+    df_shapelet: pd.DataFrame, 
+    df_prior: pd.DataFrame,
+    graph_end):
     """Preserved logic for the timeline view."""
     if graph_end is not None:
         df_actual = df_actual[:graph_end]
@@ -121,16 +142,36 @@ def graph_appliance_timeline(appliance_name: str,
         df_prior = df_prior[:graph_end]
 
     traces = [
-        {'name': f'{appliance_name} Actual', 'df': df_actual, 'color': 'blue'},
-        {'name': f'{appliance_name} Extracted', 'df': df_shapelet, 'color': 'red'},
-        {'name': f'{appliance_name} Generated', 'df': df_prior, 'color': 'green'},
+        {'name': f'AMPds2 {appliance_name}', 'df': df_actual, 'color': 'blue'},
+        {'name': f'Extracted {appliance_name} PCP', 'df': df_shapelet, 'color': 'red'},
+        {'name': f'Generated {appliance_name} PCP', 'df': df_prior, 'color': 'green'},
     ]
     fig = go.Figure()
     for tc in traces:
         col = tc['df'].columns[0]
-        fig.add_trace(go.Scatter(name=tc['name'], x=tc['df'].index, y=tc['df'][col],
-                                 mode='lines', line=dict(color=tc['color'])))
-    fig.update_layout(title=f'{appliance_name} Timeline Comparison', template='plotly_white')
+        fig.add_trace(go.Scatter(
+            name=tc['name'],
+            x=tc['df'].index,
+            y=tc['df'][col],
+            mode='lines',
+            line=dict(
+                color=tc['color'],
+                # - Set line width (default seems to be 2)
+                width=2))) # 8
+    fig.update_layout(
+        template='plotly_white',
+        title=dict(text=f'{appliance_name} load profile', xanchor='center', x=0.5), 
+        title_font=dict(size=40, family='Arial'), # 32
+        legend=dict(font=dict(size=36, color="black")), # 28
+        xaxis=dict(title="Timestamp",
+            title_font=dict(size=36), # 28
+            tickfont=dict(size=36) # 28
+        ),
+        yaxis=dict(title="Watts",
+            title_font=dict(size=36), # 28
+            tickfont=dict(size=36) # 28
+        ))
+
     fig.show()
 
 

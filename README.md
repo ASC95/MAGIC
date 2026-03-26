@@ -1,23 +1,30 @@
 # MAGIC interpolation repository
-- The MAGIC interpolation repository is a tool that is designed to interpolate 15-minute load shapes into 1-minute load shapes. The first step is to
+- The MAGIC interpolation repository is a tool that is designed to upsample 15-minute load shapes into 1-minute load shapes. The first step is to
   select a source of 1-minute residential appliance load shapes. We use the AMPds2 dataset for this purpose. It contains 2-year, 1-minute load shapes
-  for 20 individual appliances from a home in Vancouver. The second step is to select a source of 15-minute load shapes to interpolate. We use the
+  for 20 individual appliances from a home in Vancouver. The second step is to select a source of 15-minute load shapes to upsample. We use the
   SMART-DS dataset which contains 1-year, 15-minute load shapes for residential customer and commercial customer loads. The third step is to train a
-  separate variational autoencoder (VAE) model for each individual 1-minute appliance load shape in order to create models that can generate synthetic
-  data to represent those appliances. The fourth step is to interpolate each 15-minute load shape. For a given 15-minute load shape, interpolation is
-  done in several steps. First, divide the 15-minute load shape into intervals. Next, consider the mean, standard deviation, and length of a given
-  interval. Select a set of trained VAE models and sample those models to generate a set of synthetic 1-minute load shapes. Sum the synthetic 1-minute
-  load shapes together until the mean, standard deviation, and length of the sum matches the mean, standard deviation, and length of the interval.
-  Replace the 15-minute interval with the sum of the 1-minute samples. Do this for all 15-minute intervals in a load shape until the entire 15-minute
-  load shape has been transformed into an equivalent load shape with 1-minute resolution. This repository contains a set of scripts and data for
-  performing this interpolation.
+  separate variational autoencoder (VAE) model for each individual 1-minute appliance in order to create a model that can generate synthetic power
+  consumption patterns (PCPs) that accurately represent that appliance. The fourth step is to create appliance objects that combine the VAE models
+  with user-defined constraints, such as daily allowed operational time intervals and monthly allowed operational time intervals. These user-defined
+  constraints allow the user to impose a degree of realism on the final upsampled load shape by restricting when appliances can be turned on and off.
+  The fifth step is to upsample each 15-minute load shape. For a given 15-minute load shape, upsampling is done in several steps. First, perform
+  zero-order interpolation on the 15-minute data to transform it into 1-minute data. Next, use a greedy matching pursuit algorithm to align appliance
+  power consumption patterns sampled from VAE models into optimal positions in the 1-minute load shape. Each iteration gradually fills the area under
+  the 1-minute load shape target curve in order to approximate the energy consumption of the curve with summed appliance power consumption patterns.
+  Each iteration selects the optimal appliance power consumption pattern from the set of 20 appliances that will reduce the error the most. Perform a
+  desired number of iterations of summing appliance power consumption patterns to approximate the 1-minute load shape until the error between the
+  1-minute load shape and the approximated load shape is within some threshold. The original 15-minute load shape is considered upsampled when a
+  closely approximated load shape created from synthetic VAE appliance power consumption patterns has been created. This repository contains a set of
+  scripts and data for performing this interpolation.
 ## Diagrams
 - The following diagram shows the basic workflow for how the software interpolates 15-minute load shapes into 1-minute load shapes.
-- ![](./src/interpolation/doc/basic-workflow.png)
+- ![](./src/doc/process-diagram.jpg)
 ## Repository Structure
 - The MAGIC interpolation repository uses the TimeVAE repository as the implementation for the variational autoencoder.
   - See `lib/timeVAE/README.md` for documentation on TimeVAE
 - The project has the following directories and files:
+
+
 ```plaintext
 magic/
 ├── lib/                                                # Third-party tools
@@ -64,6 +71,8 @@ magic/
 ├── README.md                                           # README file
 └── requirements.txt                                    # Dependencies
 ```
+
+
 ## Input data descriptions
 ### AMPds2
 - The AMPds2 data is composed of a single hierarchical data format file that contains 2-year, 1-minute-resolution load shapes for 20 appliances from a
@@ -74,29 +83,7 @@ magic/
     can be retrieved as a DataFrame via `df = <hdf_file>.get(f'/building1/elec/{meter}')`. Each appliance has a meter labled as `meter2` - `meter21`,
     with `meter1` being the label for the whole house meter
 ### SMART-DS
-- The SMART-DS data is composed of three different feeders: rhs0_1247--rdt1527, rhs2_1247--rdt1262, and rhs2_1247--rdt1264
-  - rhs0_1247--rdt1527 
-    - It has 1075 customer residential loads and 39 customer commercial loads
-      - These are split into 2150 OpenDSS residential loads and 62 OpenDSS commercial loads
-        - It uses 189 unique residential per-unit load shapes and 29 unique commercial per-unit load shapes across the OpenDSS loads
-    - It has 112 OpenDSS fuse objects
-    - It has 605 OpenDSS transformer objects
-    - Low-PV, low-BESS configuration
-      - It has 164 residential PV installations
-      - It has 3 commercial PV installations
-      - It has 54 residential BESS installations
-      - It has 1 commercial BESS installations
-      - Total PV power capacity is 455 kVA
-      - Total BESS power capacity is 484 kVA
-      - Total BESS energy capacity is 880 kWh
-    - Medium-PV, high-BESS configuration
-      - It has 384 residential PV installations
-      - It has 5 commercial PV installations
-      - It has 438 residential BESS installations
-      - It has 6 commercial BESS installations
-      - Total PV power capacity is 1092 kVA
-      - Total BESS power capacity is 3907 kVA
-      - Total BESS energy capacity is 7104 kWh
+- The SMART-DS data is composed of two different feeders: rhs2_1247--rdt1262, and rhs2_1247--rdt1264
   - rhs2_1247--rdt1262 
     - It has 339 customer residential loads and 18 customer commercial loads
       - These are split into 678 OpenDSS residential loads and 30 OpenDSS commercial loads
@@ -174,11 +161,11 @@ python install.py
 ```
 ## Usage
 ### Prepare data
-- Ensure that AMPds2.h5 has been downloaded and placed into the `src/interpolation/data/ampds2` directory
-  - See `src/interpolation/data/ampds2/AMPds2.txt` for instructions
+- Ensure that AMPds2.h5 has been downloaded and placed into the `src/data/ampds2` directory
+  - See `src/data/ampds2/AMPds2.txt` for instructions
 ### Configure training
-- Set training parameters for each appliance in `src/interpolation/src/config/appliances.yaml`. The pre-configured values should work well for basic
-  usage and shouldn't need to be changed
+- Set training parameters for each appliance in `src/config/appliance_config.yaml`. The pre-configured values should work well for basic usage and
+  shouldn't need to be changed
   - `load_consumption`: whether the load is "constant" or "variable"
   - `load_timing`: whether the load is "intermittent", "periodic", or "continuous"
   - `name`: the name of the appliance

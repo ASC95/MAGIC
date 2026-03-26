@@ -26,8 +26,8 @@ class ShapeletProcessor:
             self.config['shapelet_max_len'] = np.inf
         
         # Validation
-        if self.config['shapelet_start_W'] <= self.config['shapelet_end_W']:
-            raise ValueError("Start threshold must be greater than end threshold for hysteresis.")
+        if self.config['shapelet_start_W'] < self.config['shapelet_end_W']:
+            raise ValueError("Start threshold must be greater than or equal to end threshold for hysteresis.")
 
     def get_ampds2_data(self) -> pd.DataFrame:
         """Loads and cleans data from the AMPds2 HDF5 file."""
@@ -54,12 +54,12 @@ class ShapeletProcessor:
     def extract_shapelets(self, data: pd.DataFrame) -> Tuple[List[np.ndarray], pd.DataFrame]:
         """Extracts shapelets using Hysteresis (Schmitt Trigger) logic."""
         ary_data = data['power'].fillna(0).values
-        
-        shapelet_indexes = []
+        filtered_shapelet_indexes1 = []
         is_on = False
         start_idx = 0
-
-        # Optimized loop for extraction
+        shapelet_lens1 = []
+        # - The first pass must get the actual length of every shapelet because that's how I find the lengths that exceed one standard deviation above
+        #   or below the mean length
         for i, val in enumerate(ary_data):
             if val >= self.config['shapelet_start_W'] and not is_on:
                 is_on = True
@@ -67,40 +67,55 @@ class ShapeletProcessor:
             elif val <= self.config['shapelet_end_W'] and is_on:
                 is_on = False
                 end_idx = i - 1
-                if end_idx >= start_idx:
-                    shapelet_indexes.append((start_idx, end_idx))
+                length = end_idx - start_idx + 1 
+                # - Record the real length
+                shapelet_lens1.append(length)
+                # - Filter shapelet indexes based on user-defined length constraints
+                # - The purpose of user-defined min_len is to prevent shapelets less than 3 readings long from being used and to select certain parts
+                #   of appliance cycles
+                # - The purpose of user-defined max_len is to remove ridiculously long shapelets
+                if self.config['shapelet_min_len'] <= length <= self.config['shapelet_max_len']:
+                    filtered_shapelet_indexes1.append((start_idx, end_idx))
+        # - View statistics about the real lengths
+        mean_len, std_len = np.mean(shapelet_lens1), np.std(shapelet_lens1)
+        print(f'Real min shapelet length: {min(shapelet_lens1)}')
+        print(f'Real max shapelet length: {max(shapelet_lens1)}')
+        print(f'Real mean shapelet length: {mean_len}')
+        print(f'Real std shapelet length: {std_len}')
 
-        shapelets = [ary_data[s:e+1] for s, e in shapelet_indexes]
+        # - Filter shapelets based on the standard deviation of lengths
+        #   - Actually don't do this. It isn't that useful. Eyeballing is better. This logic is good for inspection however
+        #upper = round(mean_len + std_len)
+        #lower = round(mean_len - std_len)
+        #shapelet_lens2 = []
+        #filtered_shapelet_indexes2 = []
+        #for t in filtered_shapelet_indexes1:
+        #    length = t[1] - t[0] + 1
+        #    # - We need to remove these shapelets before training the VAE model
+        #    # - These filtered shapelets are used to compute the evaluation metrics
+        #    if lower <= length <= upper:
+        #        filtered_shapelet_indexes2.append((t[0], t[1]))
+        #        shapelet_lens2.append(length)
+        ## - View statistics about filtered lengths
+        #print(f'Filtered min shapelet length: {min(shapelet_lens2)}')
+        #print(f'Real max shapelet length: {max(shapelet_lens2)}')
+        #print(f'Real mean shapelet length: {np.mean(shapelet_lens2)}')
+        #print(f'Real std shapelet length: {np.std(shapelet_lens2)}')
 
-        # - Throw out real shapelets that are more than 1 standard deviation above or below the mean shapelet length because 1) we need to throw those
-        #   shapelets out before training the VAE model and 2) the shapelets returned by this function are used to compute the evaluation metrics
         # - Get rid of shapelets that exceed my minimum and maximum watt constraints
-        lengths = np.array([len(x) for x in shapelets])
-        mean_len, std_len = np.mean(lengths), np.std(lengths)
-        print(f'pre-filter min length: {min(lengths)}')
-        print(f'pre-filter max length: {max(lengths)}')
-        print(f'pre-filter mean length: {mean_len}')
-        print(f'pre-filter std length: {std_len}')
-        upper = round(mean_len + std_len)
-        lower = round(mean_len - std_len)
-        # - min_len is there to prevent shapelets less than 3 readings long from being used and to select certain parts of appliance cycles
-        # - max_len is there to cut down ridiculously long shapelets
-        # - lower and upper are there to enforce some length consistency
-        shapelets = [s for s in shapelets if self.config['shapelet_min_len'] <= len(s) <= self.config['shapelet_max_len'] and lower <= len(s) <= upper and all(val <= self.config['shapelet_max_W'] for val in s)]
-        lengths = np.array([len(x) for x in shapelets])
-        mean_len, std_len = np.mean(lengths), np.std(lengths)
-        print(f'post-filter min length: {min(lengths)}')
-        print(f'post-filter max length: {max(lengths)}')
-        print(f'post-filter mean length: {mean_len}')
-        print(f'post-filter std length: {std_len}')
+        filtered_shapelet_indexes3 = []
+        for t in filtered_shapelet_indexes1:
+            shapelet = ary_data[t[0]:t[1] + 1]
+            if all([val <= self.config['shapelet_max_W'] for val in shapelet]):
+                filtered_shapelet_indexes3.append((t[0], t[1]))
+        shapelets = [ary_data[t[0]:t[1] + 1] for t in filtered_shapelet_indexes3]
+        # - Inspect first 50 shapelets
         for i in range(min([len(shapelets), 50])):
             print(f'{i}th mean: {np.mean(shapelets[i])}')
-        
         # Create visualization dataframe (zeroed out except for shapelets)
         viz_data = np.zeros_like(ary_data)
-        for s, e in shapelet_indexes:
+        for s, e in filtered_shapelet_indexes3:
             viz_data[s:e+1] = ary_data[s:e+1]
-        
         df_viz = pd.DataFrame(viz_data, index=data.index, columns=['shapelet_activity'])
         return shapelets, df_viz
 
@@ -108,8 +123,8 @@ class ShapeletProcessor:
         """Applies sliding window and padding logic for training."""
         processed = shapelets
         
-        #if self.config.get('shapelet_sliding_window', False):
-        #    processed = self._apply_sliding_window(processed)
+        if self.config.get('sliding_window_length') is not None:
+            processed = self._apply_sliding_window(processed, self.config['sliding_window_length'])
             
         return self._pad_shapelets(processed)
 
@@ -125,7 +140,7 @@ class ShapeletProcessor:
         scaler = timeVAE.data_utils.load_scaler(model_dir)
         
         # Sample and Inverse Scale
-        samples = timeVAE.vae.vae_utils.get_prior_samples(vae, 10000)
+        samples = timeVAE.vae.vae_utils.get_prior_samples(vae, 50000)
         inverse_scaled = timeVAE.data_utils.inverse_transform_data(samples, scaler)
         
         # Physics Correction: Clip negatives to 0 (Load cannot be negative)
@@ -157,21 +172,18 @@ class ShapeletProcessor:
         
         return shapelets, df_prior
 
-    #def _apply_sliding_window(self, shapelets: List[np.ndarray]) -> List[np.ndarray]:
-    #    window_len = self.config['shapelet_length']
-    #    windows = []
-    #    for ary in shapelets:
-    #        if len(ary) > window_len:
-    #            v = sliding_window_view(ary, window_len)
-    #            # Filter zero-only windows
-    #            valid = v[~np.all(v == 0, axis=1)].copy()
-    #            if len(valid) > 0:
-    #                valid[:, 0] = ary[0]
-    #                valid[:, -1] = ary[-1]
-    #                windows.extend(valid)
-    #        else:
-    #            windows.append(ary)
-    #    return windows
+    def _apply_sliding_window(self, shapelets: List[np.ndarray], sliding_window_length) -> List[np.ndarray]:
+        windows = []
+        for ary in shapelets:
+            if len(ary) - sliding_window_length > self.config['shapelet_min_len']:
+                # - Get <sliding_window_length> + 1 of each shapelet, but each one is <sliding_window_length> elements shorter
+                v = sliding_window_view(ary, len(ary) - sliding_window_length)
+                if any([len(window) < self.config['shapelet_min_len'] for window in v]):
+                    raise Exception('Sliding window was too large and created shapelets that are less than shapelet_min_len')
+                windows.extend(v)
+            else:
+                windows.append(ary)
+        return windows
 
     def _pad_shapelets(self, shapelets: List[np.ndarray]) -> List[np.ndarray]:
         if not shapelets: return []

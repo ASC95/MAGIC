@@ -1,4 +1,4 @@
-import yaml, re
+import yaml, re, time, logging, concurrent
 from numba import njit
 from datetime import datetime
 from pathlib import Path
@@ -94,7 +94,6 @@ def main():
     appliance_names = interpolation_cfg['active_appliances']
     appliances = []
     for name in appliance_names:
-
         num_instances = 1
         valid_daily_windows = None
         valid_seasons = None
@@ -103,74 +102,119 @@ def main():
         #if name == 'heat_pump':
         #    num_instances = 2
         #    valid_seasons = [('09-01', '01-01')]
-
-        appliances.append(load_appliance_from_vae(
+        appliances.append(_load_appliance_from_vae(
             directory=paths.VAE_SHAPELETS_OUTPUTS_DIR,
             appliance_name=name, 
             num_instances=num_instances,
             selection_mode='replacement',
             valid_daily_windows=valid_daily_windows,
             valid_seasons=valid_seasons))
+    # - Option 1: Evaluate the quality of an AMPds2 reconstruction
+    #evaluate_ampds2_reconstruction(appliances, 300000)
+    #evaluate_ampds2_reconstruction(appliances, 3000)
 
-    evaluate_ampds2_reconstruction(appliances)
-
-    '''
-    # - Get SMART-DS data
-    dss_file = paths.RDT1262_FILE_PATH
+    # - Option 2: Upsample all of the SMART-DS load shapes
+    dss_filepath = paths.RDT1262_FILE_PATH
     loadshapes_dir = paths.LOADSHAPES_DIR
-    df = get_smartds_loadshapes(dss_file, loadshapes_dir)
-    # - Grab a subset of data for visualiation
-    df = df['2018-01-03 00:00:00':'2018-01-03 12:45:00']
+    _upsample_smartds_feeder_multiprocessing(dss_filepath, loadshapes_dir, appliances)
+
+
+def _upsample_smartds_feeder_multiprocessing(dss_filepath, loadshapes_dir, appliances):
+    '''
+    :param dss_file: the path to the dss circuit file
+    :type dss_file: Path
+    :param loadshapes_dir: Path
+    :type loadshapes_dir: the path to the load shapes directory
+    :param appliances: a list of appliance objects
+    :type appliances: list
+    :rtype: None
+    '''
+    assert isinstance(dss_filepath, Path)
+    assert isinstance(loadshapes_dir, Path)
+    assert isinstance(appliances, list)
+
+    df, kw_bases = get_smartds_loadshapes(dss_filepath, loadshapes_dir, mode='pu')
     # - Scale to W instead of kW
     df *= 1000
-    load_name = 'load_p1rlv630'
-    target_w_15 = df['Residential', load_name]
-    # - Stepwise interpolation to 1-minute intervals
-    target_w_1 = forward_fill_load_shape(target_w_15)
 
-    # - Perform interpolation
-    max_iterations = 2000
-    results_df, results_w, log_df = greedy_interpolation(target_w_1, appliances, max_iterations)
+    # - Work with a subset of columns
+    #df = df.iloc[0:1000, 0:1]
+    df = df.iloc[:, -1:]
+    #df = df.iloc[:, 0:2]
 
-    # - save results_df to file to check consecutive runs
-    #results_df.to_csv(paths.OUTPUTS_DIR / 'interpolation_runs' / f'{load_name}_{max_iterations}_{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    # - Set parameters for upsampling 
+    max_iterations = 300000
+    output_dir = paths.OUTPUTS_DIR / 'SMART-DS' / 'max_accuracy'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    # - Perform upsampling
+    process_argument_tuples = [(df.xs(col, axis=1, level=1), col, kw_bases[col], appliances, max_iterations, output_dir) for col in df.columns.get_level_values(1)]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
+        future_list = []
+        for process_argument_list in process_argument_tuples:
+            future_list.append(executor.submit(_upsample_smartds_feeder, *process_argument_list))
+        for f in concurrent.futures.as_completed(future_list):
+            if f.exception() is None:
+                logging.info(f'{f.result()} was returned')
+            else:
+                raise f.exception()
+    
 
-    verify_capacity_constraints_greedy(log_df, appliances)
-    accuracy_df = summarize_interpolation_accuracy(target_w_1, results_w)
-    print(accuracy_df)
-    plot_interpolation_results(target_w_1, results_w, results_df)
+def _upsample_smartds_feeder(target_w_15, load_name, kw_base, appliances, max_iterations, output_dir):
     '''
+    - res_kw_985_pu
+        - 60,000 iterations: 15% CVMAE, 634 seconds
+        - 100,000 iterations: 14% CVMAE, 771 seconds
+        - 300,000 iterations: 14% CVMAE, 1311 seconds
+
+    :param target_w_15: the load shape that we want to upsample. Should be 15-minute data
+    :type target_w_15: DataFrame
+    :param load_name: the name of the load or per-unit load shape that is being upsampled
+    :type load_name: str
+    :param kw_base: the kW multiplier associated with the load in the dss file. Per-unit load shapes don't have multipliers themselves, but in "pu"
+        mode we still choose a load to scale the associated pu load shape and that load has a multiplier
+    :type kw_base: float
+    :param appliances: a list of appliance objects
+    :type appliances: list
+    :param max_iterations: the maximum number of matching pusuit iterations to perform. If the error_threshold is met, fewer iterations will be
+        performed
+    :type max_iterations: int
+    :param output_dir: the directory to output the resulting upsampled load shapes
+    :type output_dir: Path
+    :rtype: None
+    '''
+    assert isinstance(target_w_15, pd.DataFrame)
+    assert isinstance(load_name, str)
+    assert isinstance(kw_base, float)
+    assert isinstance(appliances, list)
+    assert isinstance(max_iterations, int)
+    assert isinstance(output_dir, Path)
+    target_w_1 = _forward_fill_load_shape(target_w_15.iloc[:, 0])
+    start_time = time.perf_counter() 
+    results_df, results_w, log_df = _greedy_interpolation(target_w_1, appliances, max_iterations)
+    end_time = time.perf_counter()
+    elapsed_time = f'{round(end_time - start_time)} sec'
+
+    # - Evaluate result
+    #_verify_capacity_constraints_greedy(log_df, appliances)
+    #accuracy_df = _summarize_interpolation_accuracy(target_w_1, results_w)
+    #print(accuracy_df)
+    #_plot_interpolation_results(load_name, target_w_1, results_w, results_df)
+
+    # - Evaluate and view result
+    metrics_df = _calculate_reconstruction_metrics(
+        ground_truth=target_w_1, 
+        interpolated=results_w,
+        max_iterations=max_iterations,
+        runtime=elapsed_time)
+    metrics_df['Load name'] = load_name 
+    _display_reconstruction_metrics(metrics_df, target_w_1, results_w, results_df, load_name, f'{load_name}_performance.png')
+
+    # - Write to disk
+    results_w /= (1000 * kw_base)
+    results_w.to_csv(f'{output_dir / load_name}.csv', index=False, header=False)
 
 
-def forward_fill_load_shape(target_15min):
-    assert isinstance(target_15min, pd.Series)
-    # - Reindex 15-minute interval data to 1-minute data in a forward-fill fashion because each 15-minute interval reading represents the average of
-    #   the subsequent 15-minute interval of power consumption (not an instantaneous reading taken every 15 minutes)
-    # 1. Define the Start and exact End time you want
-    # Assuming your data covers a single day, e.g., '2024-01-01'
-    start_time = target_15min.index[0]
-    # Explicitly set the end to the last minute of the last day in your data
-    last_hour = target_15min.index[-1].hour
-    end_time = target_15min.index[-1].replace(hour=last_hour, minute=59, second=0)
-
-    # 2. Create the full 1-minute index
-    full_1min_index = pd.date_range(start=start_time, end=end_time, freq='1min')
-
-    # 3. Reindex and Forward Fill
-    # This forces the dataframe to conform to the new index.
-    # method='ffill' takes the 23:45 value and propagates it to 23:46...23:59.
-    target_1min = target_15min.reindex(full_1min_index, method='ffill')
-    return target_1min
-
-
-def load_appliance_from_vae(
-    directory: str, 
-    appliance_name: str, 
-    num_instances: int, 
-    selection_mode: str,
-    valid_daily_windows: list,
-    valid_seasons: list,
-) -> Appliance:
+def _load_appliance_from_vae(directory: str, appliance_name: str, num_instances: int, selection_mode: str, valid_daily_windows: list, valid_seasons: list) -> Appliance:
     """
     Scans the directory for the VAE shapelet file for the given appliance,
     loads the patterns, and returns an Appliance instance.
@@ -238,10 +282,7 @@ def load_appliance_from_vae(
     )
 
 
-# --- 1. Helper: Season & Time Constraint Logic ---
-
-
-def get_md_int(timestamp):
+def _get_md_int(timestamp):
     """Converts a timestamp or string to an integer MMDD (e.g., Dec 1 -> 1201)."""
     # If it's already a pandas Timestamp/DatetimeIndex
     if hasattr(timestamp, 'month'): 
@@ -253,7 +294,7 @@ def get_md_int(timestamp):
     return 0
 
 
-def check_time_constraints(times: pd.DatetimeIndex, app):
+def _check_time_constraints(times: pd.DatetimeIndex, app):
     """
     Generates a boolean mask (True = Valid Start Time) based on Appliance constraints.
     """
@@ -271,9 +312,8 @@ def check_time_constraints(times: pd.DatetimeIndex, app):
         times_md = times.month * 100 + times.day
         
         for start_str, end_str in app.valid_seasons:
-            s_int = get_md_int(start_str)
-            e_int = get_md_int(end_str)
-            
+            s_int = _get_md_int(start_str)
+            e_int = _get_md_int(end_str)
             if s_int <= e_int:
                 # Standard range (e.g. June to August: 601 to 831)
                 # Allow times BETWEEN start and end
@@ -282,9 +322,7 @@ def check_time_constraints(times: pd.DatetimeIndex, app):
                 # Wrap-around range (e.g. Dec to Jan: 1201 to 115)
                 # Allow times AFTER start OR BEFORE end
                 current_range = (times_md >= s_int) | (times_md <= e_int)
-                
             season_mask |= current_range
-            
         final_mask &= season_mask
 
     # --- B. DAILY WINDOW CHECK ---
@@ -306,21 +344,13 @@ def check_time_constraints(times: pd.DatetimeIndex, app):
             else:
                 # Overnight window (e.g. 23:00 to 02:00)
                 current_window = (minutes_of_day >= s_min) | (minutes_of_day <= e_min)
-            
             daily_mask |= current_window
-            
         final_mask &= daily_mask
-
     return final_mask
 
 
 # --- 2. Main Greedy Function (Updated for Class Structure) ---
-def greedy_interpolation(
-    target_series: pd.Series, 
-    appliances: list, 
-    max_iterations, 
-    error_threshold=10.0,
-    seed=None):
+def _greedy_interpolation(target_series: pd.Series, appliances: list, max_iterations, error_threshold=10.0, seed=None):
     if seed is not None:
         np.random.seed(seed)
 
@@ -330,7 +360,7 @@ def greedy_interpolation(
     total_interpolated = np.zeros(n_points)
     
     # Pre-calc constraints
-    static_masks = {app.name: check_time_constraints(times, app) for app in appliances}
+    static_masks = {app.name: _check_time_constraints(times, app) for app in appliances}
     active_counts = {app.name: np.zeros(n_points, dtype=int) for app in appliances}
     used_patterns = {app.name: set() for app in appliances}
     
@@ -354,9 +384,10 @@ def greedy_interpolation(
         current_residual = target_values - total_interpolated
         global_error = np.sum(np.abs(current_residual))
         if it % 100 == 0:
-            print(f'{it}: global error {global_error}')
+            #print(f'{it}: global error {global_error}')
+            pass
         if global_error < error_threshold:
-            print(f"Converged at iteration {it}.")
+            #print(f"Converged at iteration {it}.")
             break
 
         best_round_move = None 
@@ -471,7 +502,26 @@ def greedy_interpolation(
     return results_df, total_series, log_df
 
 
-def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
+def _forward_fill_load_shape(target_15min):
+    assert isinstance(target_15min, pd.Series)
+    # - Reindex 15-minute interval data to 1-minute data in a forward-fill fashion because each 15-minute interval reading represents the average of
+    #   the subsequent 15-minute interval of power consumption (not an instantaneous reading taken every 15 minutes)
+    # 1. Define the Start and exact End time you want
+    # Assuming data covers a single day, e.g., '2024-01-01'
+    start_time = target_15min.index[0]
+    # Explicitly set the end to the last minute of the last day
+    last_hour = target_15min.index[-1].hour
+    end_time = target_15min.index[-1].replace(hour=last_hour, minute=59, second=0)
+    # 2. Create the full 1-minute index
+    full_1min_index = pd.date_range(start=start_time, end=end_time, freq='1min')
+    # 3. Reindex and Forward Fill
+    # This forces the dataframe to conform to the new index.
+    # method='ffill' takes the 23:45 value and propagates it to 23:46...23:59.
+    target_1min = target_15min.reindex(full_1min_index, method='ffill')
+    return target_1min
+
+
+def _verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
     """
     Verifies that the number of active instances never exceeds limits.
     Compatible with both Greedy (explicit duration) and MILP (pattern lookup) logs.
@@ -479,13 +529,11 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
     if log_df.empty:
         print("Log is empty. No constraints to check.")
         return True
-
     print("\n--- Detailed Timeline Reconstruction (Constraint Check) ---")
     
     # 1. Setup & Pre-calculation
     min_time = log_df['Start Time'].min()
     app_map = {app.name: app for app in appliances}
-    
     # Calculate durations and global max time
     durations_per_row = []
     end_times_abs = [] # Absolute timestamps for end
@@ -502,7 +550,6 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
             duration = len(app_map[name].patterns[variant_idx])
         else:
             duration = 0 
-            
         durations_per_row.append(duration)
         end_times_abs.append(start + pd.Timedelta(minutes=duration))
 
@@ -510,10 +557,8 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
     max_time_abs = max(end_times_abs) if end_times_abs else min_time
     # +1 minute buffer to handle inclusive endpoints safely
     total_minutes = int((max_time_abs - min_time).total_seconds() / 60) + 5
-    
     # 2. Initialize Timelines
     timeline_counts = {app.name: np.zeros(total_minutes, dtype=int) for app in appliances}
-    
     # 3. Populate Timeline & Print Details
     print(f"Simulation Range: {min_time} to {max_time_abs}")
     
@@ -521,16 +566,12 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
         name = row['Appliance']
         start = row['Start Time']
         duration = durations_per_row[idx]
-        
         if name not in timeline_counts: continue
-            
         # Convert timestamp to integer index relative to min_time
         start_idx = int((start - min_time).total_seconds() / 60)
         end_idx = start_idx + duration
-        
         # Boundary check
         if start_idx < 0: continue
-        
         # Populate the timeline array
         # Note: slicing [start:end] is exclusive of end, which creates exactly 'duration' points
         actual_end = min(end_idx, total_minutes)
@@ -538,16 +579,13 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
 
     print("\n--- Final Constraint Verification ---")
     all_passed = True
-    
     for app in appliances:
         counts = timeline_counts[app.name]
         limit = app.num_instances
         max_overlap = np.max(counts) if len(counts) > 0 else 0
-        
         if max_overlap > limit:
             print(f"[FAIL] {app.name}: Peak Overlap {max_overlap} > Limit {limit}")
             all_passed = False
-            
             # Show where the violation happened
             violation_indices = np.where(counts > limit)[0]
             if len(violation_indices) > 0:
@@ -556,11 +594,10 @@ def verify_capacity_constraints_greedy(log_df: pd.DataFrame, appliances: list):
                 print(f"       !!! Limit exceeded starting at {fail_time}")
         else:
             print(f"[PASS] {app.name}: Peak Overlap {max_overlap} <= Limit {limit}")
-            
     return all_passed
 
 
-def summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd.Series):
+def _summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd.Series):
     """
     Compares the original 15-minute target against the mean of the 
     interpolated 1-minute values for each block.
@@ -578,42 +615,121 @@ def summarize_interpolation_accuracy(target_series: pd.Series, result_series: pd
 
     # Iterate through each 15-minute block in the target
     for timestamp, target_val in target_series.items():
-        
         # Define the end of this 15-minute block
         end_time = timestamp + pd.Timedelta(minutes=15)
-        
         # Slice the 1-minute result series for this specific window
         # We slice [start : end) (exclusive of end time)
         # resulting in exactly 15 one-minute points.
         block_values = result_series[timestamp : end_time - pd.Timedelta(minutes=1)]
-        
         if block_values.empty:
             continue
-            
         # Calculate the actual mean achieved by the solver
         interp_mean = block_values.mean()
-        
         # Calculate error (Positive means Target was higher than Interpolation)
         difference = target_val - interp_mean
         differences.append(difference)
-        
         summary_data.append({
             "Timestamp": timestamp,
             "Target (kW)": target_val,
             "Interpolated Mean (kW)": interp_mean,
             "Error (kW)": difference
         })
-
     # Create DataFrame
     df_summary = pd.DataFrame(summary_data)
-    
     # Optional: formatting for cleaner display
     pd.options.display.float_format = '{:.3f}'.format
-    
     return df_summary
 
 
-def calculate_reconstruction_metrics(ground_truth: pd.Series, interpolated: pd.Series) -> pd.DataFrame:
+def _plot_interpolation_results(load_name: str, target_series: pd.Series, result_series: pd.Series, results_df: pd.DataFrame):
+    """
+    Plots interpolation results using the exact data from the greedy output.
+    
+    Args:
+        target_series: The target load curve (Red Line).
+        result_series: The sum of all interpolated appliances (Black Dashed Line).
+        results_df: DataFrame where columns are Appliance Names and values are Load.
+    """
+    fig = go.Figure()
+    
+    # --- 1. Setup Color Palette ---
+    # Combine palettes to ensure enough distinct colors for many appliances
+    color_pool = pc.qualitative.D3 + pc.qualitative.Plotly + pc.qualitative.G10
+    color_iterator = cycle(color_pool)
+    # --- 2. Add Appliance Stacks ---
+    # We sort columns to ensure consistent legend order between runs
+    for col_name in sorted(results_df.columns):
+        profile = results_df[col_name].values
+        # Only plot if this appliance type has non-zero load
+        if np.sum(profile) > 0:
+            this_color = next(color_iterator)
+            fig.add_trace(go.Scatter(
+                x=results_df.index,
+                y=profile,
+                mode='lines',
+                name=col_name,
+                stackgroup='one', # Enables stacking
+                line=dict(width=0.5, color=this_color),
+                fillcolor=this_color # Ensures the fill matches the line color
+            ))
+    # --- 3. Add Reference Lines ---
+    # Total Interpolated (Black Dashed)
+    # This sits on top of the stack. It must match the top edge perfectly.
+    fig.add_trace(go.Scatter(
+        x=result_series.index,
+        y=result_series.values,
+        mode='lines',
+        name='Total Interpolated',
+        line=dict(color='black', width=2.5, dash='solid'),
+    ))
+    # Target (Red Step Line)
+    # We extend the last point to make the step-plot look complete at the end
+    if not target_series.empty:
+        last_time = target_series.index[-1]
+        last_val = target_series.values[-1]
+        
+        # Estimate frequency (e.g., 15 mins) for the visual extension
+        if len(target_series) > 1:
+            freq_min = (target_series.index[1] - target_series.index[0]).total_seconds() / 60
+        else:
+            freq_min = 15 # Default fallback
+        end_time = last_time + pd.Timedelta(minutes=freq_min)
+        extension = pd.Series([last_val], index=[end_time])
+        target_plot = pd.concat([target_series, extension])
+        fig.add_trace(go.Scatter(
+            x=target_plot.index,
+            y=target_plot.values,
+            mode='lines',
+            #mode='markers',
+            #marker=dict(
+            #    size=15, # Sets a fixed size of 15 pixels for all markers
+            #    color='red'
+            #),
+            name='Target',
+            line=dict(color='red', width=3),
+            line_shape='hv' # Horizontal-Vertical step shape
+        ))
+    # --- 4. Formatting ---
+    fig.update_layout(
+        # - Set global font size
+        font=dict(family="Arial", size=36, color="black"),
+        #title="Interpolation Results: Target vs. Appliance Stack",
+        title=f'15-minute to 1-minute Upsampling for "{load_name}"',
+        xaxis_title="Timestamp",
+
+        #yaxis_title="Power (kW)",
+        yaxis_title="Power (W)",
+
+        hovermode="x unified",
+        legend=dict(yanchor="top", y=1, xanchor="left", x=1.02), # Legend outside right
+        margin=dict(r=150) # Right margin for legend
+    )
+    # Ensure y-axis starts at 0 (or slightly below if needed)
+    fig.update_yaxes(rangemode="tozero")
+    fig.show()
+
+
+def _calculate_reconstruction_metrics(ground_truth: pd.Series, interpolated: pd.Series, max_iterations, runtime) -> pd.DataFrame:
     """
     Computes performance metrics (MAE, CV-MAE) between a ground truth load shape
     and an interpolated load shape.
@@ -645,6 +761,7 @@ def calculate_reconstruction_metrics(ground_truth: pd.Series, interpolated: pd.S
     # This normalizes the error relative to the average load.
     # Formula: MAE / Mean(Ground Truth)
     truth_mean = np.mean(truth_aligned)
+    interpolated_mean = np.mean(interp_aligned)
     
     # Avoid division by zero
     if truth_mean > 1e-9:
@@ -654,121 +771,37 @@ def calculate_reconstruction_metrics(ground_truth: pd.Series, interpolated: pd.S
 
     # 4. Format Results
     metrics = {
-        "Metric": ["Performance"],
+        #"Metric": ["Performance"],
+        "Iterations": [max_iterations],
+        "Runtime": [runtime],
         "MAE (W)": [mae],
         #"CV(MAE)": [cv_mae],  # Result is a ratio (e.g., 0.15 for 15%)
         "CV(MAE) %": [cv_mae * 100],  # Result is a percentage (e.g., 15.0%)
-        "Ground Truth Mean (W)": [truth_mean],
-        "Points Evaluated": [len(common_index)]
+        "Ground truth mean (W)": [truth_mean],
+        "Interpolated mean (W)": [interpolated_mean],
+        "Points evaluated": [len(common_index)]
     }
 
-    return pd.DataFrame(metrics)
+    df = pd.DataFrame(metrics)
+    df.index = ['Value']
+    return df
 
 
-def plot_interpolation_results(
-    target_series: pd.Series, 
-    result_series: pd.Series, 
-    results_df: pd.DataFrame
-):
-    """
-    Plots interpolation results using the exact data from the greedy output.
-    
-    Args:
-        target_series: The target load curve (Red Line).
-        result_series: The sum of all interpolated appliances (Black Dashed Line).
-        results_df: DataFrame where columns are Appliance Names and values are Load.
-    """
-    fig = go.Figure()
-    
-    # --- 1. Setup Color Palette ---
-    # Combine palettes to ensure enough distinct colors for many appliances
-    color_pool = pc.qualitative.D3 + pc.qualitative.Plotly + pc.qualitative.G10
-    color_iterator = cycle(color_pool)
-
-    # --- 2. Add Appliance Stacks ---
-    # We sort columns to ensure consistent legend order between runs
-    for col_name in sorted(results_df.columns):
-        profile = results_df[col_name].values
-        
-        # Only plot if this appliance type has non-zero load
-        if np.sum(profile) > 0:
-            this_color = next(color_iterator)
-            
-            fig.add_trace(go.Scatter(
-                x=results_df.index,
-                y=profile,
-                mode='lines',
-                name=col_name,
-                stackgroup='one', # Enables stacking
-                line=dict(width=0.5, color=this_color),
-                fillcolor=this_color # Ensures the fill matches the line color
-            ))
-
-    # --- 3. Add Reference Lines ---
-    
-    # Total Interpolated (Black Dashed)
-    # This sits on top of the stack. It must match the top edge perfectly.
-    fig.add_trace(go.Scatter(
-        x=result_series.index,
-        y=result_series.values,
-        mode='lines',
-        name='Total Interpolated',
-        line=dict(color='black', width=2.5, dash='solid'),
-    ))
-
-    # Target (Red Step Line)
-    # We extend the last point to make the step-plot look complete at the end
-    if not target_series.empty:
-        last_time = target_series.index[-1]
-        last_val = target_series.values[-1]
-        
-        # Estimate frequency (e.g., 15 mins) for the visual extension
-        if len(target_series) > 1:
-            freq_min = (target_series.index[1] - target_series.index[0]).total_seconds() / 60
-        else:
-            freq_min = 15 # Default fallback
-            
-        end_time = last_time + pd.Timedelta(minutes=freq_min)
-        
-        extension = pd.Series([last_val], index=[end_time])
-        target_plot = pd.concat([target_series, extension])
-
-        fig.add_trace(go.Scatter(
-            x=target_plot.index,
-            y=target_plot.values,
-            mode='lines',
-            name='Target',
-            line=dict(color='red', width=3),
-            line_shape='hv' # Horizontal-Vertical step shape
-        ))
-
-    # --- 4. Formatting ---
-    fig.update_layout(
-        title="Interpolation Results: Target vs. Appliance Stack",
-        xaxis_title="Time",
-
-        #yaxis_title="Power (kW)",
-        yaxis_title="Power (W)",
-
-        hovermode="x unified",
-        legend=dict(yanchor="top", y=1, xanchor="left", x=1.02), # Legend outside right
-        margin=dict(r=150) # Right margin for legend
-    )
-    
-    # Ensure y-axis starts at 0 (or slightly below if needed)
-    fig.update_yaxes(rangemode="tozero")
-    
-    fig.show()
+def _display_reconstruction_metrics(metrics_df, df_truth_1min, results_total_1min, results_df, load_name, filename):
+    assert isinstance(metrics_df, pd.DataFrame)
+    assert isinstance(results_total_1min, pd.Series)
+    # 6. Display Results
+    print("\nEvaluation Results:")
+    # Format for cleaner console output
+    pd.options.display.float_format = '{:.4f}'.format
+    #print(metrics_df.T) # Transpose for vertical readability
+    visualize.save_metrics_table_png(metrics_df, filename, 1000)
+    # 7. Plot Comparison
+    # We pass the results_df to your existing plotter
+    #_plot_interpolation_results(load_name, df_truth_1min, results_total_1min, results_df)
 
 
-def compare_runs():
-    # - Used to inspect if appliance constraints are being respected
-    df_1 = pd.read_csv(paths.OUTPUTS_DIR / 'interpolation_1500_2025-12-29 21:39:03')
-    df_2 = pd.read_csv()
-    pass
-
-
-def evaluate_ampds2_reconstruction(appliances: list, max_iterations=2000):
+def evaluate_ampds2_reconstruction(appliances: list, max_iterations: int):
     """
     Runs a full validation experiment:
     1. Loads real 1-minute data (AMPds2).
@@ -777,57 +810,38 @@ def evaluate_ampds2_reconstruction(appliances: list, max_iterations=2000):
     4. Compares the Reconstruction vs. The Original.
     """
     print("\n--- Starting AMPds2 Reconstruction Evaluation ---")
-
     # 1. Load Ground Truth (1-minute)
     # Note: Requires your ampds2_load_builder module
     df_truth_1min = get_ampds2_loadshape()
-
-    
     # Optional: Slice to a smaller window for faster testing if needed
     # df_truth_1min = df_truth_1min['2018-01-01':'2018-01-07']
-    
     # 2. Create Target (15-minute)
     # Downsample to simulate the low-res input we would get from a utility
     target_15min = df_truth_1min.resample('15min', label='left', closed='left').mean()
-    
     # - Select a subset for testing
-    df_truth_1min = df_truth_1min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
-    target_15min = target_15min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
-
+    #df_truth_1min = df_truth_1min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
+    #target_15min = target_15min['2012-04-03 00:00:00':'2012-04-03 12:45:00']
     # 3. Prepare Target for Interpolation (Stepwise 1-minute)
     # This creates the "Red Line" step function your interpolator expects
-    target_step_1min = forward_fill_load_shape(target_15min)
-
+    target_step_1min = _forward_fill_load_shape(target_15min)
     # 4. Run Interpolation
     print(f"Interpolating {len(target_step_1min)} minutes of data...")
-    results_df, results_total_1min, log_df = greedy_interpolation(
+    start_time = time.perf_counter() 
+    results_df, results_total_1min, log_df = _greedy_interpolation(
         target_series=target_step_1min, 
         appliances=appliances, 
-        max_iterations=max_iterations
-    )
-
+        max_iterations=max_iterations)
+    end_time = time.perf_counter()
+    elapsed_time = f'{round(end_time - start_time)} sec'
     # 5. Evaluate Performance
-    metrics_df = calculate_reconstruction_metrics(
+    metrics_df = _calculate_reconstruction_metrics(
         ground_truth=df_truth_1min, 
-        interpolated=results_total_1min
-    )
-    
-    # 6. Display Results
-    print("\nEvaluation Results:")
-    # Format for cleaner console output
-    pd.options.display.float_format = '{:.4f}'.format
-    #print(metrics_df.T) # Transpose for vertical readability
-    print(metrics_df)
-    visualize.save_metrics_table_png(metrics_df, 'ampds2_performance.png')
-    
-    # 7. Plot Comparison
-    # We pass the results_df to your existing plotter
-    plot_interpolation_results(target_step_1min, results_total_1min, results_df)
-    plot_interpolation_results(df_truth_1min, results_total_1min, results_df)
-    
-    return metrics_df
+        interpolated=results_total_1min,
+        max_iterations=max_iterations,
+        runtime=elapsed_time)
+    # 6. Display performance
+    _display_reconstruction_metrics(metrics_df, df_truth_1min, results_total_1min, results_df, 'AMPds2 house', 'ampds2_performance.png')
 
 
 if __name__ == '__main__':
     main()
-    #compare_runs()

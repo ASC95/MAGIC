@@ -1,5 +1,4 @@
-active_appliances: [dishwasher, dryer, fridge, garage, heat_pump, light16, light2]
+active_appliances: [dishwasher, dryer, fridge, garage, heat_pump, hvac, light16, light2, light3, light4, oven, rental_suite, security, sockets17, sockets20, sockets7, television, washer, water_heater, workbench]
 run_evaluation: true
 show_graph: false
 graph_end: null
-#graph_end: '2012-04-30 00:00'
