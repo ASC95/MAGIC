@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Load Leaflet from CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""> </script> 
+    <!-- Load the third-party Esri Leaflet plugin, which is used to get ESRI tiles -->
+    <script src="https://unpkg.com/esri-leaflet@3.0.10/dist/esri-leaflet.js"></script>
+    <script src="https://unpkg.com/esri-leaflet-vector@4.0.1/dist/esri-leaflet-vector.js"></script>
+    <!-- Load the third-party Mapbox GL Leaflet plugin, which is used to get Mapbox tiles -->
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.5.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.5.0/mapbox-gl.js'></script>
+    <script src="https://unpkg.com/mapbox-gl-leaflet/leaflet-mapbox-gl.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js" crossorigin="anonymous"></script>
+    <!-- Geocoding -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.css"/>
+    <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.umd.js"></script>
+    <!-- Marker clustering -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css">
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <!-- Local --> 
+    {{ css }}
+    <meta charset="utf-8">
+    <title>OMF GeoJSON Editor</title>
+  </head>
+  <body>
+    <header>
+        <div id="menuInsert"></div>
+    </header>
+    <main></main>
+    <script>
+        'use strict';
+        const gFeatureCollection = {% if featureCollection %}{{ featureCollection | safe }}{% else %}null{% endif %};
+        const gComponentsCollection = {% if componentsCollection %}{{ componentsCollection | safe }}{% else %}null{% endif %};
+        const gThisOwner = "{% if thisOwner %}{{ thisOwner | safe }}{% else %}null{% endif %}";
+        const gThisModelName = "{% if thisModelName %}{{ thisModelName | safe }}{% else %}null{% endif %}";
+        const gThisFeederName = "{% if thisFeederName %}{{ thisFeederName | safe }}{% else %}null{% endif %}";
+        const gThisFeederNum = {% if thisFeederNum %}{{ thisFeederNum | safe }}{% else %}null{% endif %};
+        const gPublicFeeders = {% if publicFeeders %}{{ publicFeeders | safe }}{% else %}null{% endif %};
+        const gUserFeeders = {% if userFeeders %}{{ userFeeders | safe }}{% else %}null{% endif %};
+        const gCurrentUser = "{% if currentUser %}{{ currentUser | safe }}{% else %}null{% endif %}";
+        const gShowFileMenu = {% if showFileMenu %}{{ showFileMenu | safe }}{% else %}null{% endif %};
+        const gIsOnline = {% if isOnline %}{{ isOnline | safe }}{% else %}null{% endif %};
+        const gShowAddNewObjectsButton = {% if showAddNewObjectsButton %}{{ showAddNewObjectsButton | safe }}{% else %}null{% endif %};
+        const gShowAttachmentsButton = {% if showAttachmentsButton %}{{ showAttachmentsButton | safe }}{% else %}null{% endif %};
+        const gShowAddGeojsonButton = {% if showAddGeojsonButton %}{{ showAddGeojsonButton | safe }}{% else %}null{% endif %};
+    </script>
+    {{ js }}
+  </body>
+</html>

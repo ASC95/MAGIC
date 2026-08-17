@@ -1,0 +1,15 @@
+# config/config.yaml (this is the top-level entrypoint - should not be edited by general users)
+defaults:
+  - sim
+  - plot
+  - train
+  - sensor
+  - KPI
+  - _self_
+
+save_dir: ???  # must be defined in any user-level scripts
+output_path: ???  # must be defined in any user-level scripts
+
+hydra:
+  run:
+    dir: ${save_dir}/${output_path}/${now:%Y-%m-%d_%H-%M-%S}

@@ -1,0 +1,20 @@
+{
+    "gamma": "0.5", 
+    "w_stow": "0", 
+    "rotlim": "45.0", 
+    "trackingMode": "0", 
+    "created": "2014-07-25 18:00:13.412000", 
+    "simLengthUnits": "hours", 
+    "tilt": "-", 
+    "inverterSize": "0", 
+    "simStartDate": "2014-07-30", 
+    "zipCode": "64735", 
+    "modelType": "pvWatts", 
+    "climateName": "MO-KANSAS_CITY", 
+    "inverterEfficiency": "92", 
+    "azimuth": "180", 
+    "simLength": "240", 
+    "systemSize": "5", 
+    "runTime": "0:00:00", 
+    "nonInverterEfficiency": "77"
+}

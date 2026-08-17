@@ -1,0 +1,55 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+Core profiler results
+======================
+
+Total objects               1647 objects
+Parallelism                    1 thread
+Total time                 162.0 seconds
+  Core time                  9.0 seconds (5.6%)
+    Compiler                 3.0 seconds (1.8%)
+    Instances                0.0 seconds (0.0%)
+    Random variables         0.0 seconds (0.0%)
+    Schedules                0.0 seconds (0.0%)
+    Loadshapes               0.0 seconds (0.0%)
+    Enduses                  1.0 seconds (0.6%)
+    Transforms               1.0 seconds (0.6%)
+  Model time               153.0 seconds/thread (94.4%)
+Simulation time                7 days
+Simulation speed             1.7k object.hours/second
+Passes completed            7778 passes
+Time steps completed        3889 timesteps
+Convergence efficiency      2.00 passes/timestep
+Read lock contention        0.0%
+Write lock contention       0.0%
+Average timestep            156 seconds/timestep
+Simulation rate            3733 x realtime
+
+
+Model profiler results
+======================
+
+Class            Time (s) Time (%) msec/obj
+---------------- -------- -------- --------
+node             126.769     82.9%    548.8
+house              5.831      3.8%     41.6
+triplex_meter      4.176      2.7%     29.8
+triplex_node       3.082      2.0%     22.0
+waterheater        2.655      1.7%     19.0
+overhead_line      2.637      1.7%     15.1
+transformer        2.303      1.5%     16.3
+triplex_line       2.169      1.4%     15.5
+ZIPload            1.665      1.1%      5.9
+fuse               0.477      0.3%     17.0
+collector          0.372      0.2%     62.0
+underground_line   0.361      0.2%     16.4
+climate            0.153      0.1%    153.0
+switch             0.086      0.1%     21.5
+meter              0.069      0.0%     34.5
+regulator          0.066      0.0%     66.0
+load               0.046      0.0%     46.0
+recorder           0.036      0.0%     12.0
+player             0.031      0.0%     15.5
+auction            0.024      0.0%     24.0
+================ ======== ======== ========
+Total            153.008    100.0%     92.9
+

@@ -1,0 +1,82 @@
+/**********************************************/
+/* Default styling. BE CAREFUL WHEN CHANGING! */
+/**********************************************/
+div.div--topTab {
+    height: 100%;
+}
+div.div--topTabTabContainer {
+    /*background: hsla(360, 0%, 87%, 1);*/
+    /*box-shadow: inset -1px 0px darkgray;*/
+    /*display: flex;*/
+    /*height: 2rem;*/
+    text-align: center;
+}
+div.div--topTabTabContainer > div {
+    /*cursor: pointer;*/
+    display: none;
+    z-index: 0;
+}
+div.div--topTabTabContainer > div.selected {
+    display: block;
+    padding: .5rem;
+    z-index: 1;
+}
+div.div--topTabTabContainer > div.selected > button {
+    background-color: transparent;
+    border: 0;
+    color: #757575;
+    cursor: pointer;
+    height: 24px;
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    width: 24px;
+}
+div.div--topTabTabContainer > div.selected > span {
+    font-weight: bold;
+}
+div.div--topTabTabContainer > div.selected > span::before {
+    background: #FFFFFF; /* This is the color of the selected tab */
+}
+div.div--topTabTabContainer > div > span {
+    font-size: 26px;
+    /*margin: 0 10px 0 10px;*/
+    /*padding: 0 0 2px 0;*/
+    /*position: relative;*/
+}
+div.div--topTabTabContainer > div > span::before {
+    /* This is the color of unselected tabs */
+    /*background: hsla(360, 0%, 87%, 1);*/
+    /*border: 1px solid black;*/
+    /*border-bottom: none;*/
+	/*border-radius: 10px 10px 0 0;*/
+    /*bottom: -4px;*/
+    /*content: '';*/
+    /*left: -10px;*/
+    /*position: absolute;*/
+    /*right: -10px;*/
+    /*top: -2px;*/
+    /* I don't want curves anymore */
+    /*transform: perspective(10px) rotateX(2deg);*/
+    /*transform-origin: bottom;*/
+    z-index: -1;
+}
+div.div--topTabContentContainer {
+    background: #FFFFFF; /* This is the background of the tab content */
+    /*box-shadow: inset -1px 0px darkgray;*/
+    height: 100%;
+    position: relative;
+    /*box-shadow: inset 0 1px 0 0 black;*/
+    /*box-shadow: 0 10px 10px -5px black;*/
+    /* Match Leaflet box shadow */
+    /*box-shadow: 0 3px 14px rgba(0,0,0,0.4);*/
+}
+div.div--topTabContentContainer > div {
+    display: none;
+}
+div.div--topTabContentContainer > div.selected {
+   display: block;
+   height: 100%;
+}
+
+/* Are there topTab styling variations? Not yet */

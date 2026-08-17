@@ -1,0 +1,46 @@
+# =============================================================================
+# Training Configuration File (config/train.yaml)
+# -----------------------------------------------------------------------------
+# Purpose: adjust any training parameters here
+# Notes:
+#  - variables and variable values should generally be lowercase (e.g., 'false' or 'null')
+#  - anything in all caps is meant to be a backup parameter which should not be needed if other inputs are defined properly (i.e., these most likely will not need to be updated by most users)
+#  - use &<reusable_params> to create reusable blocks and *<reusable_params> to reference that block elsewhere
+# =============================================================================
+
+ARS_RAND_DIRECTIONS: 2
+ARS_BEST_DIRECTIONS: 1
+ARS_LEARNING_RATE: 0.002
+ARS_NOISE_STD: 0.005
+ARS_NUM_ITERATIONS: 3
+ARS_LR_DECAY_FACTOR: 0.5
+ARS_LR_DECAY_EVERY: 5
+ARS_NOISE_DECAY_FACTOR: 0.5
+ARS_NOISE_DECAY_EVERY: 5
+ObservationIndices: # Comment out unused observation indices
+  - 0 # voltage at node
+  - 1 # average voltage over the last 10 steps at node
+  - 2 # previous action at node
+  - 3 # psik at node (intermediate state for the controller)
+  - 4 # Voltage difference at node (difference between current and stable voltage at t=50)
+  - 5 # yk at node (measure for oscillation)
+  - 6 # yk of worst node (measure for oscillation)
+#  - 7 # voltage imbalance a-b
+#  - 8 # voltage imbalance b-c
+#  - 9 # voltage imbalance c-a
+RewardConfig1:
+  all_y_weight: 1.0
+  action_weight: 10.0
+  voltage_weight: 500.0
+  max_y_weight: 50.0
+  imbalance_weight: 0.0
+  use_sum_rewards: true
+  enable_debug: true
+RewardConfig:
+  all_y_weight: 0.0
+  action_weight: 0.0
+  voltage_weight: 0.0
+  max_y_weight: 100.0
+  imbalance_weight: 0.0
+  use_sum_rewards: true
+  enable_debug: false

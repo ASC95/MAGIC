@@ -1,0 +1,21 @@
+battery device class=battery_storage_device name=bsd_48 bus=48 default_control_setting=standby min_SOC=0.2 max_SOC=1.0 total_capacity=3000 current_capacity=1500 max_charge_power=750 max_discharge_power=750 max_ramp_rate=1.0
+battery device class=battery_storage_device name=bsd_33 bus=33 default_control_setting=standby min_SOC=0.2 max_SOC=1.0 total_capacity=1000 current_capacity=500 max_charge_power=250 max_discharge_power=250 max_ramp_rate=1.0
+battery device class=battery_storage_device name=bsd_71 bus=71 default_control_setting=standby min_SOC=0.2 max_SOC=1.0 total_capacity=1000 current_capacity=500 max_charge_power=250 max_discharge_power=250 max_ramp_rate=1.0
+
+battery controller class=battery_controller_cent control_mode=psvf valley_active_power_target=6300 peak_active_power_target=6700 name=psbc lowpass_filter_frequency=0.05 eta=0.01 K_P=0.75 K_I=0.05 K_D=0.02 default_control_setting=standby devices=[bsd_33,bsd_48,bsd_71]
+
+switch device class=switch_device name=sw1 line=sw1 default_control_setting=close dependency=[]
+switch device class=switch_device name=sw2 line=sw2 default_control_setting=close dependency=[]
+switch device class=switch_device name=sw3 line=sw3 default_control_setting=open dependency=[]
+switch device class=switch_device name=sw4 line=sw4 default_control_setting=close dependency=[]
+switch device class=switch_device name=sw5 line=sw5 default_control_setting=close dependency=[]
+switch device class=switch_device name=sw6 line=sw6 default_control_setting=close dependency=[]
+switch device class=switch_device name=sw7 line=sw7 default_control_setting=close dependency=[]
+
+switch controller class=switch_controller name=switch_controller devices=[sw1]
+switch controller class=switch_controller name=switch_controller devices=[sw2]
+switch controller class=switch_controller name=switch_controller devices=[sw3]
+switch controller class=switch_controller name=switch_controller devices=[sw4]
+switch controller class=switch_controller name=switch_controller devices=[sw5]
+switch controller class=switch_controller name=switch_controller devices=[sw6]
+switch controller class=switch_controller name=switch_controller devices=[sw7]

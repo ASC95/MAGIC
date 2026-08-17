@@ -1,0 +1,49 @@
+                                                                                                                                                                                                                                                                                                                                                      
+Core profiler results
+======================
+
+Total objects               2277 objects
+Parallelism                    1 thread
+Total time                  11.0 seconds
+  Core time                  1.4 seconds (12.6%)
+    Compiler                 3.8 seconds (34.9%)
+    Instances                0.0 seconds (0.0%)
+    Random variables         0.0 seconds (0.0%)
+    Schedules                0.0 seconds (0.0%)
+    Loadshapes               0.0 seconds (0.2%)
+    Enduses                  0.0 seconds (0.2%)
+    Transforms               0.1 seconds (0.5%)
+  Model time                 9.6 seconds/thread (87.4%)
+Simulation time               10 days
+Simulation speed              50k object.hours/second
+Passes completed             242 passes
+Time steps completed         241 timesteps
+Convergence efficiency      1.00 passes/timestep
+Read lock contention        0.0%
+Write lock contention       0.0%
+Average timestep           3585 seconds/timestep
+Simulation rate           78545 x realtime
+
+
+Model profiler results
+======================
+
+Class            Time (s) Time (%) msec/obj
+---------------- -------- -------- --------
+node               8.082     84.1%     16.7
+house              0.355      3.7%      1.1
+collector          0.287      3.0%     57.4
+overhead_line      0.173      1.8%      0.5
+triplex_meter      0.171      1.8%      0.9
+waterheater        0.167      1.7%      0.7
+climate            0.135      1.4%    135.0
+transformer        0.106      1.1%      0.6
+ZIPload            0.055      0.6%      0.2
+underground_line   0.050      0.5%      0.5
+fuse               0.017      0.2%      0.4
+recorder           0.008      0.1%      4.0
+switch             0.007      0.1%      0.6
+capacitor          0.002      0.0%      2.0
+================ ======== ======== ========
+Total              9.615    100.0%      4.2
+

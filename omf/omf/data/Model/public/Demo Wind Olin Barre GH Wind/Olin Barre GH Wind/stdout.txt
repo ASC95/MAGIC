@@ -1,0 +1,51 @@
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+Core profiler results
+======================
+
+Total objects               2280 objects
+Parallelism                    1 thread
+Total time                  15.0 seconds
+  Core time                  2.1 seconds (14.0%)
+    Compiler                 4.0 seconds (26.6%)
+    Instances                0.0 seconds (0.0%)
+    Random variables         0.0 seconds (0.0%)
+    Schedules                0.0 seconds (0.0%)
+    Loadshapes               0.0 seconds (0.2%)
+    Enduses                  0.0 seconds (0.2%)
+    Transforms               0.1 seconds (0.8%)
+  Model time                12.9 seconds/thread (86.0%)
+Simulation time               12 days
+Simulation speed              46k object.hours/second
+Passes completed             448 passes
+Time steps completed         301 timesteps
+Convergence efficiency      1.49 passes/timestep
+Read lock contention        0.0%
+Write lock contention       0.0%
+Average timestep           3588 seconds/timestep
+Simulation rate           72000 x realtime
+
+
+Model profiler results
+======================
+
+Class            Time (s) Time (%) msec/obj
+---------------- -------- -------- --------
+node              10.345     80.2%     21.4
+collector          0.655      5.1%    131.0
+house              0.527      4.1%      1.6
+overhead_line      0.280      2.2%      0.8
+triplex_meter      0.279      2.2%      1.5
+waterheater        0.250      1.9%      1.1
+transformer        0.156      1.2%      0.8
+climate            0.134      1.0%    134.0
+ZIPload            0.105      0.8%      0.3
+underground_line   0.072      0.6%      0.8
+fuse               0.048      0.4%      1.1
+switch             0.018      0.1%      1.5
+recorder           0.013      0.1%      4.3
+windturb_dg        0.009      0.1%      9.0
+meter              0.004      0.0%      4.0
+capacitor          0.003      0.0%      3.0
+================ ======== ======== ========
+Total             12.898    100.0%      5.7
+

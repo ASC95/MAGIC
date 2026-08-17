@@ -1,0 +1,32 @@
+nav.js-nav--topNav {
+    background: black;
+    display: flex;
+    height: 100%;
+}
+nav.js-nav--topNav a {
+    text-decoration: none;
+}
+nav.js-nav--topNav button {
+    background-color: transparent;
+    border: 0;
+    /*cursor: pointer;*/
+    padding: 14px;
+    width: var(--headerHeight);
+}
+/*nav.js-nav--topNav button:hover {
+    background-color: gray;
+    transition: background-color 0.2s ease-out;
+}*/
+nav.js-nav--topNav div {
+    align-items: center;
+    display: flex;
+    /* This padding was added because David removed the hamburger menu */
+    padding: 0 0 0 10px;
+}
+nav.js-nav--topNav span {
+    color: white;
+    font-size: 26px;
+}
+nav.js-nav--topNav svg path {
+    fill: white;
+}

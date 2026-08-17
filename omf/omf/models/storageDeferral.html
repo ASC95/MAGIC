@@ -1,0 +1,291 @@
+<head>
+	{{ omfHeaders }}
+	<style>
+		#Metric {
+			font-weight:bold;
+			width:175px;
+		}
+		#SPP {
+			font-weight:bold;
+		}
+		#tableHead {
+			margin-top:20px;
+		}
+		/*File Styles*/
+		#fileBackground{position:absolute;width:205px;max-width:205px;height:29px;margin: -30px 0 0 116px;background-color:gainsboro;}
+		#fileExists {
+			background-color:transparent;
+			max-width:185px;
+			overflow-x:auto;
+			overflow-y:hidden;
+			height:35px;
+			margin:-32px 0 0 116px;
+			position:absolute;
+			font-size:0.8em;
+			z-index:1;
+		}
+		#demandCurveFileName {line-height:35px;}
+		input[type='file'] {
+		  color: transparent;
+		}
+		/*IE Hacks*/
+		@media screen\0 {
+			#fileBackground{margin-left:0px;width:222px;max-width:222px;height:29px;}
+			#fileExists{margin: -27px 0 0 10px;height:42px;}
+		}
+		/*Firefox Hacks*/
+		@-moz-document url-prefix() {
+			#fileBackground{margin-left:125px;width:195px;max-width:195px;}
+			#fileExists{max-width:175px;margin:-32px 0 0 135px;height:47px;}
+		 }
+	</style>
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-storageDeferral" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{allInputDataDict.modelType}}" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required">
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Economic Variables</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label>Unit Capacity (kWh-AC)</label>
+				<input type="text" id="cellCapacity" name="cellCapacity" value="{{allInputDataDict.cellCapacity}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Charge Rating (kW)</label>
+				<input type="text" id="chargeRate" name="chargeRate" value="{{allInputDataDict.chargeRate}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Discharge Rating (kW)</label>
+				<input type="text" id="dischargeRate" name="dischargeRate" value="{{allInputDataDict.dischargeRate}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Maximum Depth of Discharge (%)<span class="classic">The maximum safe discharge capacity of the battery system, typically between 80% - 90%.</span></label>
+				<input type="text" id="dodFactor" name="dodFactor" value="{{allInputDataDict.dodFactor}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Battery Round Trip Efficiency (%)<span class="classic">The efficiency of the DC battery system, to be used with the Inverter efficiency to get Battery System AC Round Trip Efficiency equal to this value times <i>Inverter Efficiency &amp; Transformer Efficiency</i> &#178;</span></label>
+				<input type="text" id="batteryEfficiency" name="batteryEfficiency" value="{{allInputDataDict.batteryEfficiency}}" required="required" pattern="^\d+\.?\d*?$">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Inverter &amp; Transformer Efficiency (%)<span class="classic">Combined Inverter and Transformer Efficiency in converting DC power to AC power. Used in the Battery System AC Round Trip Efficiency calculation. The Inverter efficiency is obtained from the Weighted Efficiency (CEC) Method.</span></label>
+				<input type="text" id="inverterEfficiency" name="inverterEfficiency" value="{{allInputDataDict.inverterEfficiency}}" pattern="^(100|\d\d|\d)(\.\d+)?$" required="required" >
+			</div>
+			<div class="shortInput">
+				<label>Unit Cost (installed)</label>
+				<input type="text" id="cellCost" name="cellCost" value="{{allInputDataDict.cellCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Battery Cycles in Lifetime</label>
+				<input type="text" id="batteryCycleLife" name="batteryCycleLife" value="{{allInputDataDict.batteryCycleLife}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Electricity Cost ($/kW)<span class="classic">The cost of the electricity used to recharge the battery system.</span></label>
+				<input type="text" id="retailCost" name="retailCost" value="{{allInputDataDict.retailCost}}" pattern="^\d+\.?\d*$" required="required">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Demand Curve (.csv file)<span class="classic">Please see the documentation at the green 'Help?' link above for the required format and an example file.</span></label>
+				<input id="demandCurveFile" type="file" style="display:none" onchange="handle_files(this.files,'demandCurve','fileName')">
+				<input id="demandCurve" name="demandCurve" value="{{allInputDataDict.demandCurve}}" type="hidden">
+				<div>
+					<label for="demandCurveFile" class="fileButton">Choose File</label>
+					<input id="fileName" name="fileName" value="{{allInputDataDict.fileName}}" value='' readonly class="uploadFileName">
+				</div>
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Transformer Deferral</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Deferral Type<span class="classic">Please see the documentation at the help link for an explanation.</span></label>
+				<select id="deferralType" name="deferralType" value="{{allInputDataDict.deferralType}}" />
+					<option value="subTransformer" {% if allInputDataDict.deferralType == 'subTransformer' %}selected{% endif %}>Substation Transformer</option>
+					<option value="line" {% if allInputDataDict.deferralType == 'line' %}selected{% endif %}>Transmission Line</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label>Capacity Threshold (MVA)</label>
+				<input type="text" id="transformerThreshold" name="transformerThreshold" value="{{allInputDataDict.transformerThreshold}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Hardware Replacement Cost ($)</label>
+				<input type="text" id="avoidedCost" name="avoidedCost" value="{{allInputDataDict.avoidedCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Time to Replacement (yrs)</label>
+				<input type="text" id="yearsToReplace" name="yearsToReplace" value="{{allInputDataDict.yearsToReplace}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Carrying Cost Per Year (%)</label>
+				<input type="text" id="carryingCost" name="carryingCost" value="{{allInputDataDict.carryingCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<div id="output">
+		<script id="globalOutputScripting">
+			function insertMetric(tableId, name, vector) {
+				// Add a vector to a table as a row.
+				table = gebi(tableId)
+				newRow = table.insertRow()
+				newRow.insertCell().innerHTML = "<div id=\"metric\">" + name + "</div>"
+				for (i=0; i<vector.length; i++) {
+					cell = newRow.insertCell()
+					cell.innerHTML = delimitNumbers(vector[i].toFixed(0))
+				}
+			}
+		</script>
+		<script id="globalOutputScripting">
+			function insertDollarMetric(tableId, name, vector) {
+				// Add a vector to a table as a row.
+				table = gebi(tableId)
+				newRow = table.insertRow()
+				newRow.insertCell().innerHTML = "<div id=\"metric\">" + name + "</div>"
+				for (i=0; i<vector.length; i++) {
+					cell = newRow.insertCell()
+					cell.innerHTML = "$" + delimitNumbers(vector[i].toFixed(0))
+				}
+			}
+		</script>
+		<script type="text/javascript">
+			// Global Highcharts settings.
+			Highcharts.setOptions({global:{useUTC:true}})
+		</script>
+		<p class="reportTitle" style="page-break-before:always">Demand Before and After Storage</p>
+		<div id="irradianceReport" class="tightContent">
+			<div id="demandBattChart"></div>
+			<script>
+				new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"pointStart":Date.parse(allOutputData.startDate),
+							"shadow":false,
+							"pointInterval":3600000},
+						"line":{"marker":{"enabled":false}}},
+					"xAxis":{"maxZoom":108000000,
+						"tickColor":"#D3D3D3",
+						"tickLength":-680,
+						"type":"datetime",
+						"lineColor":"gray",
+						"dateTimeLabelFormats":{ month: '%b', year: ''}},
+					"yAxis":{
+						"title":{"text":"Power (W)","style":{"color":"gray"}},
+						"minorTickColor":"gray", "minorTickInterval":"auto",
+						"plotLines":[ {color: 'blue', width: 2, value: allOutputData.transformerThreshold, dashStyle: 'longdashdot'},{color: 'green', width: 2, value: -1 * allOutputData.transformerThreshold, dashStyle: 'longdashdot'},
+						{"color": "lightgray",
+						"dashStyle": "ShortDash",
+						"width": 2,
+						"label":{"text":"Max Power:" + delimitNumbers(allOutputData.batteryDischargekWMax.toFixed(3)/1000) + "kW", "align":"right","y":-5,"x":-790, "style":{"color":"gray", "fontsize":"12px"}},
+						"value": allOutputData.batteryDischargekWMax,"zIndex": 10}]},
+					"title":{"text":null},
+					"series":[
+						{"name":"Historical","marker":{"enabled":false},"color":"red","data":allOutputData.demand,"enableMouseTracking":false},
+						{"name":"After Storage","marker":{"enabled":false},"color":"purple","data":allOutputData.demandAfterBattery,"enableMouseTracking":false},
+						{"name":"Storage Discharge","marker":{"enabled":false},"color":"lightgray","data":allOutputData.batteryDischargekW}],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"demandBattChart","type":"line","marginRight":20, "height":750,"width":1000},
+					"tooltip":{"valueDecimals":1},
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+			</script>
+		</div>
+		<p class="reportTitle">Battery State of Charge</p>
+		<div id="irradianceReport" class="tightContent">
+			<div id="batterySocChart"></div>
+			<script>
+				var dodFactor = 100 - parseFloat(allInputData.dodFactor)
+				new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"pointStart":Date.parse(allOutputData.startDate),
+							"shadow":false,
+							"pointInterval":3600000},
+						"line":{"marker":{"enabled":false}}},
+					"xAxis":{"maxZoom":108000000,
+						"tickColor":"#D3D3D3",
+						"tickLength":-205,
+						"type":"datetime",
+						"lineColor":"gray",
+						"dateTimeLabelFormats":{ month: '%b', year: ''}},
+					"yAxis":
+						{"title":{"text":"SoC (%)","style":{"color":"gray"}}, "min":0, "max":100,
+						"minorTickColor":"gray", "minorTickInterval":5,
+						"plotLines":[{"color": "gray",
+						"dashStyle": "ShortDash",
+						"width": 2,
+						"label":{"text":"Max specified DOD:" + (100 - allInputData.dodFactor) + "%","align":"right","y":-5,"x":-775, "style":{"color":"gray", "fontsize":"12px"}},
+						"value": dodFactor,"zIndex": 10}],"min":0},
+					"title":{"text":"Cycle Equivalents:" + delimitNumbers(allOutputData.cycleEquivalents.toFixed(1)) + "  Battery Life:" + delimitNumbers(allOutputData.batteryLife.toFixed(1)) + " yrs", "verticalAlign":"bottom", "align":"right", "y":-28-dodFactor*2, "x":-10, "style":{"color":"#333333", "fontSize":"12px"}},
+					"series":[
+						{"name":"Battery SoC","marker":{"enabled":false},"color":"gray","data":allOutputData.batterySoc}
+						],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"batterySocChart","type":"line","marginRight":20, "height":250,"width":1000},
+					"tooltip":{"valueDecimals":1},
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+			</script>
+		</div>
+		<!-- TODO: Make into preview graph: http://jsfiddle.net/gh/get/jquery/1.7.2/highslide-software/highcharts.com/tree/master/samples/stock/xaxis/minorticks/	 -->
+		<p class="reportTitle" style="page-break-before:always">Avoided Cost</p>
+		<div id="cashFlowReport" class="tightContent">
+			<div id="cashFlowChartDiv"></div>
+			<script>
+				new Highcharts.Chart({
+					chart: {
+						type: 'bar',
+						renderTo: 'cashFlowChartDiv',
+						height: 250,
+						width: 1000
+						},
+						title: {
+						    text:  "LCOE: " + allOutputData.LCOE.toFixed(2) +"$/kWh",
+						    verticalAlign:"bottom", "align":"right",
+						    style:{"color":"#333333", "fontSize":"12px"}
+						},
+						xAxis: {
+						    categories: ['Carrying Cost over ' + allInputData.yearsToReplace + ' years' ,  'Cost of ' + allOutputData.numOfBatteries + ' batteries', 'Net Avoided Cost']
+						},
+						yAxis: {
+						    title: {
+						       	text: 'USD($)'
+						    }
+						},
+						 credits: {
+      						enabled: false
+  						},
+						series: [{
+							showInLegend: false,
+						    name: 'Avoided Cost',
+						    data: [allOutputData.avoidedCost , allOutputData.batteryCost, allOutputData.netAvoidedCost]
+						}]
+				});
+			</script>
+		</div>
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

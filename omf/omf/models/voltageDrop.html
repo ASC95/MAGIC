@@ -1,0 +1,103 @@
+<head>
+	{{ omfHeaders }}
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+			<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-voltageDrop" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required">
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			{% if modelStatus == 'finished' %}
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>
+			{% endif %}
+			<div class="shortInput">
+				<label>Feeder</label>
+				<button id="feederButton" type="button" onclick="javascript:editFeeder(allInputData.modelName,1);" style="display:block;width:125px;">Open Editor</button>
+				<input type="text" id="feederName1" name="feederName1" value="{{allInputDataDict.feederName1}}" style="display:none">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Layout Algorithm<span class="classic">Geospatial shows the circuit the same way it was defined in the feeder editor. Force Directed uses an algorithm to show the circuit elements evenly spaced (useful for circuits without location data).</span></label>
+				<select id="layoutAlgorithm" name="layoutAlgorithm">
+					<option value="geospatial" {% if allInputDataDict.layoutAlgorithm == "geospatial" %}selected{% endif %}>Geospatial</option>
+					<option value="forceDirected" {% if allInputDataDict.layoutAlgorithm == "forceDirected" %}selected{% endif %}>Force Directed</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Node Coloring By<span class="classic">Select the simulation output value that will be used to color the nodes in the circuit.</span></label>
+				<select id="nodeCol" name="nodeCol">
+					<option value="Voltage" {% if allInputDataDict.nodeCol == "Voltage" %}selected{% endif %}>Voltage (V)</option>
+					<option value="VoltageImbalance" {% if allInputDataDict.nodeCol == "VoltageImbalance" %}selected{% endif %}>Voltage Imbalance (%)</option>
+					<option value="perUnitVoltage" {% if allInputDataDict.nodeCol == "perUnitVoltage" %}selected{% endif %}>Per-Unit Voltage (unitless)</option>
+					<option value="perUnit120Voltage" {% if allInputDataDict.nodeCol == "perUnit120Voltage" %}selected{% endif %}>120 V Scaled Per-Unit Voltage (V)</option>
+					<option value="None" {% if allInputDataDict.nodeCol == "None" %}selected{% endif %}>No Node Coloring</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Line Coloring By<span class="classic">Select the simulation output value that will be used to color the lines in the circuit.</span></label>
+				<select id="edgeCol" name="edgeCol">
+					<option value="Current" {% if allInputDataDict.edgeCol == "Current" %}selected{% endif %}>Current (A)</option>
+					<option value="Power" {% if allInputDataDict.edgeCol == "Power" %}selected{% endif %}>Power (W)</option>
+					<option value="Rating" {% if allInputDataDict.edgeCol == "Rating" %}selected{% endif %}>Line Rating (A)</option>
+					<option value="PercentOfRating" {% if allInputDataDict.edgeCol == "PercentOfRating" %}selected{% endif %}>Current vs. Line Rating (%)</option>
+					<option value="None" {% if allInputDataDict.edgeCol == "None" %}selected{% endif %}>No Line Coloring</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Node Labels<span class="classic">Text labels on nodes.</span></label>
+				<select id="nodeLabs" name="nodeLabs">
+					<option value="Name" {% if allInputDataDict.nodeLabs == "Name" %}selected{% endif %}>Component Name</option>
+					<option value="Value" {% if allInputDataDict.nodeLabs == "Value" %}selected{% endif %}>Simulation Value</option>
+					<option value="None" {% if allInputDataDict.nodeLabs == "None" %}selected{% endif %}>No Label</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Line Labels<span class="classic">Text labels on linesn</span></label>
+				<select id="edgeLabs" name="edgeLabs">
+					<option value="Name" {% if allInputDataDict.edgeLabs == "Name" %}selected{% endif %}>Component Name</option>
+					<option value="Value" {% if allInputDataDict.edgeLabs == "Value" %}selected{% endif %}>Simulation Value</option>
+					<option value="None" {% if allInputDataDict.edgeLabs == "None" %}selected{% endif %}>No Label</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Color Map<span class="classic">Select a gradient for coloring the physical values</span></label>
+				<select id="customColormap" name="customColormap">
+					<option value="False" {% if allInputDataDict.customColormap == "False" %}selected{% endif %}>Viridis</option>
+					<option value="True" {% if allInputDataDict.customColormap == "True" %}selected{% endif %}>Gray, Red, Blue</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Image Resolution (sq. in.)<span class="classic">Please select a value lower than 10,000</span></label>
+				<input type="text" id="rezSqIn" name="rezSqIn" value="{{allInputDataDict.rezSqIn}}" pattern="^\d{1,4}$"/>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<div id="output">
+		<p class="reportTitle" style="page-break-before:always">Voltage Drop Diagram</p>
+		<div id="voltageDropDiagram" class="tightContent">
+			<img id="voltageDropChart" style="width:1000px;" src="data:image/png;base64,{{allOutputDataDict.voltageDrop}}" style="border-radius:8px" />
+		</div>
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

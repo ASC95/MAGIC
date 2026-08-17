@@ -1,0 +1,175 @@
+# =============================================================================
+# Simulation Configuration File (config/plot.yaml)
+# -----------------------------------------------------------------------------
+# Purpose: adjust any plotting configuration settings here
+# Notes:
+#  - variables and variable values should generally be lowercase (e.g., 'false' or 'null')
+#  - anything in all caps is meant to be a backup parameter which should not be needed if other inputs are defined properly (i.e., these most likely will not need to be updated by most users)
+#  - use &<reusable_params> to create reusable blocks and *<reusable_params> to reference that block elsewhere
+# =============================================================================
+
+
+
+# =============================================================================
+# Figure Generation
+# -----------------------------------------------------------------------------
+# Notes:
+#   - set 'plot' to true for the plots you want to view interactively
+#   - set 'save' to true for the plots you want to save as figures in the outputs folder
+#   - set 'include_warmup' to true to include the warmup period in the plots (not recommended since the warmup period is typically not very stable)
+#   - set 'nodes_to_plot' to a list of node IDs to plot for node-specific plots (applicable only for certain plots)
+#   - set 'label_attack_type' to true to include labeled brackets above the plots indicating which device class and attack type was active for each attack period that appears in the plot
+#   - 'voltages', 'loads', 'y', and 'imbalance' are all currently saved in outputs/simulation/ under a timestamped folder corresponding to when the experiment was started
+
+figure_defaults: &figure_default
+  plot: false
+  save: false
+  include_warmup: false # include warmup period in the plot, recommended to leave out
+  label_attack_type: true # whether to label different attack types
+  figure_size: [15, 7] # --- figure size (width, height) in inches ---
+
+figures:
+  voltages:
+    <<: *figure_default
+    save: true
+    nodes_to_plot: # auto-generated: BSD buses + PV sampling
+      - '33_a'
+      - '48_a'
+      - '48_b'
+      - '48_c'
+      - '71_a'
+      - '1_a'
+      - '1_b'
+      - '1_c'
+      - '29_a'
+      - '29_b'
+      - '29_c'
+      - '49_a'
+      - '49_b'
+      - '49_c'
+      - '69_a'
+      - '90_b'
+      - '114_a'
+  loads:
+    <<: *figure_default
+    # include_warmup: true # include warmup period in the plot, recommended to leave out
+  y:
+    <<: *figure_default
+    # include_warmup: true # include warmup period in the plot, recommended to leave out
+  imbalance:
+    <<: *figure_default
+    save: false
+  oscillations:
+    <<: *figure_default
+    save: true
+# =============================================================================
+
+
+
+
+# =============================================================================
+# BSD Figure Generation
+# -----------------------------------------------------------------------------
+# Notes:
+#   - set 'plot' to true for the plots you want to view interactively
+#   - set 'save' to true for the plots you want to save as figures in the outputs folder
+#   - set 'include_warmup' to true to include the warmup period in the plots (not recommended since the warmup period is typically not very stable)
+#   - set 'nodes_to_plot' to a list of node IDs to plot for node-specific plots (applicable only for certain plots)
+#   - set 'label_attack_type' to true to include labeled brackets above the plots indicating which device class and attack type was active for each attack period that appears in the plot
+#   - all BSD plots are currently saved in outputs/simulation/ under a timestamped folder corresponding to when the experiment was started
+#   - set 'plot_compiled_data' to true to plot the total injectiosn for each node in addition to the compromised and uncompromised injections (not applicable for segment_injections plots)
+
+bsd_figure_defaults: &bsd_figure_default
+  << : *figure_default # pull original base figure defaults
+  save: false
+  plot_compiled_data: true # whether to plot total injections for each node in addition to compromised and uncompromised injections (not applicable for segment_injections plots)
+  nodes_to_plot:
+    - '670a'
+    - '670b'
+    - '670c'
+    - '611c'
+
+bsd_figures:
+  bsd_real_power_injections:
+    <<: *bsd_figure_default
+  bsd_reactive_power_injections:
+    <<: *bsd_figure_default
+  bsd_real_power_segment_injections:
+    <<: *bsd_figure_default
+  bsd_reactive_power_segment_injections:
+    <<: *bsd_figure_default
+
+
+
+# =============================================================================
+# PV Figure Generation
+# -----------------------------------------------------------------------------
+# Notes:
+#   - set 'plot' to true for the plots you want to view interactively
+#   - set 'save' to true for the plots you want to save as figures in the outputs folder
+#   - set 'include_warmup' to true to include the warmup period in the plots (not recommended since the warmup period is typically not very stable)
+#   - set 'nodes_to_plot' to a list of node IDs to plot for node-specific plots (applicable only for certain plots)
+#   - set 'label_attack_type' to true to include labeled brackets above the plots indicating which device class and attack type was active for each attack period that appears in the plot
+#   - all PV plots are currently saved in outputs/simulation/ under a timestamped folder corresponding to when the experiment was started
+#   - set 'plot_compiled_data' to true to plot the total injectiosn for each node in addition to the compromised and uncompromised injections (not applicable for segment_injections plots)
+
+pv_figure_defaults: &pv_figure_default
+  << : *figure_default # pull original base figure defaults
+  save: false
+  plot_compiled_data: true # whether to plot total injections for each node in addition to compromised and uncompromised injections (not applicable for segment_injections plots)
+  nodes_to_plot:
+    - '675_a'
+    - '675_b'
+    - '675_c'
+    - '611_c'
+
+pv_figures:
+  pv_real_power_injections:
+    <<: *pv_figure_default
+    save: false
+  pv_reactive_power_injections:
+    <<: *pv_figure_default
+    save: false
+  pv_real_power_segment_injections:
+    <<: *pv_figure_default
+  pv_reactive_power_segment_injections:
+    <<: *pv_figure_default
+
+
+
+# =============================================================================
+# Per Node Figure Generation
+# -----------------------------------------------------------------------------
+# Notes:
+#   - set 'plot' to true for the plots you want to view interactively
+#   - set 'save' to true for the plots you want to save as figures in the outputs folder
+#   - nodes_to_plot: list of node IDs to generate per-node plots for
+#  - include_warmup: bool - whether to include the warmup period in the plots
+#   - 'bsd_power_per_node', 'bsd_SOC_per_node', and 'bsd_energy_per_node' are all currently saved in outputs/simulation/figures/per_node_figures under a timestamped folder corresponding to when the experiment was started
+
+per_node_figure_defaults: &per_node_figure_default
+  plot: false
+  save: false
+  nodes_to_plot:
+    - '670_a'
+    - '670_b'
+    - '611_c'
+  # save_as_subplots: false #TODO (not yet implemented)
+  include_warmup: false # include warmup period in the plot, recommended to leave out
+  include_limits: false # include limits that show phsyical battery constraints (e.g., show SOC limits for `bsd_SOC_per_node`)
+  label_attack_type: true   
+  figure_size: [15, 7] # --- base figure size (width, height) in inches ---
+
+per_node_figures:
+  bsd_power_per_node:
+      <<: *per_node_figure_default
+      # save: true
+  bsd_SOC_per_node:
+      <<: *per_node_figure_default
+      # save: true
+  bsd_energy_per_node:
+      <<: *per_node_figure_default
+      # save: true
+# =============================================================================
+
+

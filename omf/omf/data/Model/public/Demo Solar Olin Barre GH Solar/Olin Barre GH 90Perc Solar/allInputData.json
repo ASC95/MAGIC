@@ -1,0 +1,15 @@
+{
+    "simStartDate": "2014-07-30", 
+    "simLengthUnits": "hours", 
+    "created": "2014-07-30 11:50:34.263000", 
+    "zipCode": "64735", 
+    "modelType": "gridlabMulti", 
+    "climateName": "MO-KANSAS_CITY", 
+    "simLength": "240", 
+    "feederName3": "Olin Barre GH 05Perc Solar", 
+    "feederName2": "Olin Barre GH 20Perc Solar", 
+    "feederName1": "Olin Barre GH", 
+    "runTime": "0:00:16", 
+    "feederName5": "Olin Barre GH 50Perc Solar", 
+    "feederName4": "Olin Barre GH 90Perc Solar"
+}

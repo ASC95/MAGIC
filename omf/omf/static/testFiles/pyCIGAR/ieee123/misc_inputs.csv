@@ -1,0 +1,17 @@
+Oscillation Penalty,20
+Action Penalty,0.1
+Deviation from Optimal Penalty,18
+PsetPmax Penalty,50
+load file timestep,1
+power factor,0.9
+load scaling factor,2
+solar scaling factor,2
+measurement filter time constant mean,1.2
+measurement filter time constant std,0.1
+output filter time constant mean,0.1
+output filter time constant std,0.01
+bp1 default,0.98
+bp2 default,1.01
+bp3 default,1.01
+bp4 default,1.04
+bp5 default,1.07

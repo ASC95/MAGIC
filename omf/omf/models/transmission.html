@@ -1,0 +1,175 @@
+<head>
+	{{ omfHeaders }}
+	<style>
+		table {width: 80%;margin-left:auto; margin-right:auto;}
+		td {padding:2px; text-align: center;border-top: 1px solid #ccc;}
+		th {padding:2px; text-align: center}
+	</style>
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+	<script type="text/javascript">
+		var outputIDs = [];
+		for (outputID in allOutputData.tableData){
+			outputIDs.push(String(outputID));
+		}
+	</script>
+	<!-- Global Functions -->
+	<script type="text/javascript">
+		function editNetwork(modelName, networkNum) {
+			console.log("modelName:",modelName)
+			studyUser = allInputData.user
+			window.open("/network/" + studyUser + "/" + modelName + "/" + networkNum,  "_blank")
+		}
+		function insertMetric(tableId, vector) {
+			// Add a vector to a table as a row.
+			table = gebi(tableId)
+			newRow = table.insertRow()
+			if (vector.length > 0){
+				newRow.insertCell().innerHTML = vector[0]
+				cell = newRow.insertCell()
+				if (isNaN()){
+					cell.innerHTML = vector[1]
+				}else{
+					cell.innerHTML = delimitNumbers(vector[1].toFixed(2))
+				}
+			}
+		}
+		function showOutput(){
+			// Show specific image/table and hide others.
+			var sel = document.getElementById('outputSel').value;
+			gebi(sel).style.display = 'inline';
+			for (var i=0; i < outputIDs.length; i++){
+				console.log(outputIDs[i], sel)
+				if (outputIDs[i] != sel) {
+					gebi(outputIDs[i]).style.display = 'none';
+				}
+			}
+			document.getElementById("windowLoc").scrollIntoView()
+		}
+		function parseEqualDict(volt, real, react) {
+			htmlCollector = ""
+			var i = 0
+			for(i = 0; i < real[0].length; i++) {
+				if (i < volt[0].length) {
+				htmlCollector = htmlCollector + "<tr><td>" + real[0][i]+ "</td><td>" + volt[1][i] + "</td><td>" + real[1][i] + "</td><td>" + react[1][i] + "</td></tr>";
+				}
+				else {
+					htmlCollector = htmlCollector + "<tr><td>" + real[0][i]+ "</td><td>-</td><td>" + real[1][i] + "</td><td>" + react[1][i] + "</td></tr>";
+				}
+			}
+			return htmlCollector;
+		}
+		// // Update network name from editor.
+		$(document).ready(function(){
+			$(document).bind('mainWindow', function(e, message){
+				var modelName = message.split(";")[0]
+				var networkNum = message.split(";")[1]
+				var networkName = message.split(";")[2]
+				if (allInputData.modelName == modelName){
+					gebi('networkName1').value = networkName;
+					gebi('networkName1Label').innerHTML = networkName;
+					console.log('got network name', networkName)
+				}
+			});
+		});		
+	</script>
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name= "inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<!-- Required Inputs -->
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-transmission" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{allInputDataDict.modelType}}" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Network<span class="classic">A link to the transmission editor, which offers features such as interactive component editing, search, creation, MATPOWER (.mat) file import, and more.</span></label>
+				<br>
+				<input type="hidden" id="networkName1" name="networkName1" value="{{allInputDataDict.networkName1}}">	<!--HACK:pass feeder name back and forth to backend.-->
+				<button id="networkButton" type="button" onclick="javascript:editNetwork(allInputData.modelName,1);" style="display:inline;width:125px;">Open Editor</button>
+				<label id="networkName1Label" style="display:inline;font-size:12pt;overflow-x:auto;"></label>
+				<script>
+					gebi('networkName1').value = allInputData.networkName1;
+					gebi('networkName1Label').innerHTML = allInputData.networkName1;</script>
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput ">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>
+			<!-- Model Specific Inputs -->
+			<div class="wideInput">
+				<p class="inputSectionHeader">Simulation Specs</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Algorithm<span class="classic">The MATPOWER powerflow solver method. Can be set to NR (Newton Raphson), FDXB (Fast-Decoupled XB Version), FDBX (Fast-Decoupled BX Version) or GS (Gauss Seidel). These are the solution algorithms supported by MATPOWER.</span></label>
+				<select id="algorithm" name="algorithm" value="{{allInputDataDict.algorithm}}">
+					<option value="NR" {% if allInputDataDict.algorithm == 'NR' %}selected{% endif %}>Newton Raphson</option>
+					<option value="FDXB" {% if allInputDataDict.algorithm == 'FDXB' %}selected{% endif %}>Fast-Decoupled (XB Version)</option>
+					<option value="FDBX" {% if allInputDataDict.algorithm == 'FDBX' %}selected{% endif %}>Fast-Decoupled (BX Version)</option>
+					<option value="GS" {% if allInputDataDict.algorithm == 'GS' %}selected{% endif %}>Gauss-Seidel</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Model<span class="classic">The powerflow formulation, set to AC or DC.</span></label>
+				<select id="model" name="model" value="{{allInputDataDict.model}}">
+					<option value="AC" {% if allInputDataDict.model == 'AC' %}selected{% endif %}>AC</option>
+					<option value="DC" {% if allInputDataDict.model == 'DC' %}selected{% endif %}>DC</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Tolerance<span class="classic">The termination tolerance for powerflow, in units P and Q dispatch per unit.</span></label>
+				<input type="text" id="tolerance" name="tolerance" value="{{allInputDataDict.tolerance}}" value="0.00000001" pattern="^\d+\.?\d*?$" required="required">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Iteration<span class="classic">The maximum number of iterations for the solver algorithm specified above.</span></label>
+				<input type="text" id="iteration" name="iteration" value="{{allInputDataDict.iteration}}" value="1000" required="required" pattern="^(\d{2,}|[1-9])(\.\d+)?$">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Generation Limit<span class="classic">Whether or not to set power limits on the generators in the system.</span></label>
+				<select id="model" name="model" value="{{allInputDataDict.model}}">
+					<option value="0" {% if allInputDataDict.model == '0' %}selected{% endif %}>Do not enforce</option>
+					<option value="1" {% if allInputDataDict.model == '1' %}selected{% endif %}>Enforce with simultaneous bus type conversion</option>
+					<option value="2" {% if allInputDataDict.model == '2' %}selected{% endif %}>Enforce with one-at-a-time bus type conversion</option>
+				</select>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<!-- Output tables, graphs, etc. -->
+	<div id="output">
+		<p class="reportTitle">Powerflow Voltage (P.U.) Map</p>
+		<div class="tightContent" style="overflow: auto">
+			<img id="transmissionChart" style="display: block; margin-left: auto; margin-right: auto; max-width: 100%; max-height: 100%;"/>
+			<script>gebi("transmissionChart").src = "data:image/png;base64," + allOutputData.chart</script>
+		</div>
+		<p class="reportTitle">Detailed Powerflow Results</p>
+		<div class="tightContent" style="overflow: auto">
+			<div id="tables">
+				<table id="resultsTable" style="width:100%"></table>
+				<script>
+					var htmlCollector = "<tr><th>Component Name</th><th>Voltage (PU)</th><th>Real Power (MW)</th><th>Reactive Power (MVARS)</th></tr>";
+					htmlCollector = htmlCollector + parseEqualDict(allOutputData.tableData['volts'], allOutputData.tableData['powerReal'], allOutputData.tableData['powerReact'])
+					gebi("resultsTable").innerHTML = htmlCollector; 
+				</script>
+			</div>
+		</div>
+		{{ rawOuputFiles }}
+	</div>
+	{% endif %}
+</body>

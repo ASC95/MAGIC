@@ -1,0 +1,105 @@
+<head>
+	<title>Open Modeling Framework</title>
+	<meta charset='utf-8'>
+	<meta name='Description' content='The Open Modeling Framework for smart grid cost-benefit analysis.'>
+	<link rel='stylesheet' href='/static/omf.css'/>
+	<link rel='shortcut icon' href='/static/favicon.ico'>
+	<style>
+		ul.menu.left {right: auto; left:-3.5%;padding:0 0 0 0;}
+		button.pill:hover{background:transparent;}
+		div#accountDiv{float:right;padding:0 0.75em 0 0;}
+		div#newModelDiv{width:110px;float:right;display:inline-block;}
+		div#menuText{color:darkgray;margin-left:5px;}
+		div#placeholder{height:5px;} /*Crazy float behavior for titlebar means we need this. */
+		div.content {width:980px}
+		select, input[type='text'], input[type='email'], input[type='file'], button {
+			margin: -2px 0 -2px 0;font-size:small;}
+		input[type='text'], input[type='file']{margin: -2px auto -2px auto;text-align:left;}
+		input[type='submit'] {width:auto; padding:4px 6px 4px; float:right;}
+		select, button {width:initial;}
+		table {width:100%; text-align:left;}
+		table tr td:last-child {text-align:right;}
+		table tr th:last-child {text-align:right;}
+		table thead {cursor:pointer; user-select:none;}
+		td {padding:5px;border-bottom:1px dashed gray;}
+		td,th {text-align: left;}
+		td.runningStatus {color:red;}
+		td.convertingStatus {color:red;}
+		td.finishedStatus {color:black;}
+		td.stoppedStatus {color:purple;}
+		tr:last-child td {border-bottom:none;}
+		.running, .runningInline, .postRunInline, .stoppedInline, .stopped {display: inline;}
+	</style>
+	<script type='text/javascript'>var tabName = 'Models';</script>
+	<script type='text/javascript'>sessionStorage.setItem('user', '{{ current_user }}');</script>
+	<script type='text/javascript' src='/static/omf.js'></script>
+	<script type='text/javascript' src='/static/jquery-1.9.1.js'></script>
+	<script src="/static/sorttable.js"></script>
+</head>
+<body>
+	<div id="header">
+		<div id="headInnerBlock" style="margin-top:0px;">
+			<div id="menuLeft" style="margin-top:5px;">
+				<a style="color:white;margin-top:2px;" href="/">Open Modeling Framework</a>
+			</div>
+			<div id="menuRight">
+				<div id="accountDiv">
+					<div class='buttonGroup'>
+						<button name="accountOps" id="accountOps" class='pill' onclick='dropPill(this, "Account")'>Account ▾</button>
+						<ul class='menu right'>
+							<li style="width:120px;"><form action="/logout" method="POST" style="margin:0"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button type="submit">Logout</button></form></li>
+							<li style="width:120px;"><a href="myaccount">My Account</a></li>
+							{% if is_admin %}
+							<li style="width:120px;"><a href="adminControls">Admin Controls</a></li>
+							<li style="..."><a href="omfStats">OMF Stats</a></li>
+							{% endif %}
+						</ul>
+					</div>
+				</div>
+				<div id="newModelDiv">
+					<div class="buttonGroup">
+						<button name="newModelButton" id="newModelButton" class='pill' onclick='dropPill(this, "New Model")'>New Model ▾</button>
+						<ul class='menu right' style="width:150%">
+							{% for name in modelNames %}
+								<label class="tooltip"><li><a href="javascript:createModelName('{{name}}');">{{ name }}</a></li><span class="classic">{{ modelTips[name] }}</span></label>
+							{% endfor %}
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- Close each menu due to a bug. -->
+	<script>clickCloseEvent("New","newSelector");</script>
+	<script>clickCloseEvent("Account","accountOps");</script>
+	<script>clickCloseEvent("New Model","newModelButton");</script>
+	<div id="placeholder"></div>
+	<div id='analyses'>
+		<div class='content' style="margin-top:15px; overflow-x:scroll">
+			<table class="sortable">
+				<thead>
+					<tr>
+						<th>Owner</th>
+						<th>Model Name</th>
+						<th>Type</th>
+						<th>Runtime (H:M:S)</th>
+						<th>Status</th>
+						<th>Created</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for model in models %}
+					<tr>
+						<td>{{ model.owner }}</td>
+						<td><a href = "{{'./model/' + model.owner + '/' + model.name}}">{{ model.name }}</a></td>
+						<td>{{ model.modelType }}</td>
+						<td>{{ model.runTime }}</td>
+						<td class="{{ model.status }}Status">{{ model.status }}</td>
+						<td >{{ model.created }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</body>

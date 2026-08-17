@@ -1,0 +1,7 @@
+{
+    "layoutAlgorithm": "geospatial", 
+    "created": "2014-07-30 11:18:52.495000", 
+    "modelType": "voltageDrop", 
+    "feederName1": "ABEC Columbia", 
+    "runTime": "0:00:01"
+}

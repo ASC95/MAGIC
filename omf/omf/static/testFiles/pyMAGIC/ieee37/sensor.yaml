@@ -1,0 +1,165 @@
+# =============================================================================
+# Sensor Processing Configuration File (config/sensor.yaml)
+# -----------------------------------------------------------------------------
+# Purpose: adjust any sensor processing settings here (for now the sensors refer to sensors that monitor voltages, other mterics are currently ot being monitored or processed by PyMAGIC). The following features are parameterized here:
+#  - sensor selection process (i.e. how to determine which nodes have sensors, and which do not)
+#  - FDI (false data injection) attack parameters (e.g., percentage of sensors to attack, etc.)
+#  - state estimation parameters
+#  - denoising parameters (e.g., whether to use a denoising autoencoder, etc.)
+# Notes:
+#  - variables and variable values should generally be lowercase (e.g., 'false' or 'null')
+#  - anything in all caps is meant to be a backup parameter which should not be needed if other inputs are defined properly (i.e., these most likely will not need to be updated by most users)
+#  - use &<reusable_params> to create reusable blocks and *<reusable_params> to reference that block elsewhere
+# =============================================================================
+
+
+
+# =============================================================================
+# Sensor Selection Parameters
+# -----------------------------------------------------------------------------
+# Notes:
+#   - sensor placement is done using a greedy algorithm that selects sensors based on the largest singular values of the Ybus matrix; this process is done in the sensor_selection module and the resulting sensor placements are saved as CSV files in the inputs/sensor_placements directory; to change the sensor placement, simply delete the existing CSV file and run the sensor_selection module again with the desired parameters (e.g., percentage of nodes to place sensors on, whether to use sparse SVD, etc.)
+#   - even if a sensor is selected by the algorithm that does not mean that the sensor will automatically be turned on in the simulation (see `monitored_sensor_percentage` in the State Estimation Parameters section below)
+regenerate_sensor_set: false # whether or not to regenerate the sensor set (i.e., re-run the sensor selection algorithm, set this to true if you would like to base the sensor placement off of new parameters, note that this will overwrite the existing sensor placement data which may have been generated with a different set of parameters)
+# Sensor configuration
+num_sensors: null # if null, then the number of sensors will be determined by the node_coverage parameter; if not null, then this will override the node_coverage parameter and set the number of sensors directly
+node_coverage: 0.3 # percentage of nodes to place sensors on (if num_sensors is null); if num_sensors is not null, then this parameter will be ignored
+monitored_sensor_percentage: 1.0 # Determines how many of the greedily selected sensors to actually use. The greedy selection CSV contains some percentage of nodes in the system (determined by the `node_coverage` variable). Set monitored_sensor_percentage 1 (100%) to use all sensors from the CSV
+exclude_dead_nodes: true # whether or not to exclude dead nodes (i.e., nodes with very low voltage) from the sensor selection process; if true, then any node with voltage below the `dead_node_threshold` will be excluded from consideration for sensor placement; if false, then all nodes will be considered for sensor placement regardless of their voltage levels
+dead_node_threshold: 1e-6 # typically 1e-6; nodes with voltage below this threshold will be considered dead and excluded from sensor selection if `exclude_dead_nodes` is true
+include_monitors: true # whether or not to include any existing voltage sensors in the DSS file as candidate sensors for selection
+
+# Greedy selection algorithm parameters
+sensor_basis_rank: 50 # Number of singular vectors for basis (rank)
+n_jobs: 1 # number of parallel jobs to run for sensor selection (set to -1 to use all available cores; NOTE: on Windows, must use 1 due to OpenDSS COM limitations)
+use_sparse_svd: false # set to true for large networks
+
+
+
+# =============================================================================
+# Sensor Noise Parameters
+# -----------------------------------------------------------------------------
+# ***currently only applicable for HIL - this will be changed in the future > leaving these parameters in sensor.yaml for now***
+# the following parameters are use to set the standard deviation to be use to add Gaussian noise to the voltage, P, and Q measurements
+# Gaussian noise with 0 mean and standard deviation equal to the true value multiplied by the corresponding noise percentage will be added to P, and Q measurements;
+# e.g if power_noise_std_percentage is 0.5, then the standard deviation of the noise applied to P and Q measurements will be 0.5% of the true P and Q values
+# for voltage, Gaussian noise with 0 mean and standard deviation equal to the voltage_noise_std_percentage will be added to voltage measurements;
+# for example, if voltage_noise_std_percentage is 0.1, then the standard deviation of the noise applied to voltage measurements will be 0.1/100 = 0.001 p.u.
+voltage_noise_std_percentage: 0.1
+power_noise_std_percentage: 0.5 #standard deviation of the noise applied to true P/Q values to represent sensor measurements
+sensor_random: false #set to false for reproducible sensor measurements across runs (noise will still be added according to Gaussian distribution)
+
+
+
+# =============================================================================
+# State Estimation Parameters
+# -----------------------------------------------------------------------------
+use_state_estimation: false
+state_estimation_random: false
+
+# Power factor constants
+pf_residential: 0.95
+pf_commercial: 0.90
+
+# Noise parameters
+sigma_p_abs: 0.001
+sigma_q_abs: 0.001
+sigma_u_abs: 0.0005
+
+# State estimation parameters
+se_lambda: 1e-5
+w_u:  2000.0
+eps_reg: 1e-12
+pinv_rc: 1e-8
+
+rmse_window_size: 10 # window size in seconds for computing rolling RMSE (RMSE is computed every rmse_window_size seconds; note that RMSE is only computed for the monitored sensors, and the true voltages for those sensors are saved in a separate file called V_true_masked.npy for this purpose)
+add_noise: true #whether to add noise to the measurements when performing state estimation
+# =============================================================================
+
+
+
+# =============================================================================
+# FDI (False Data Injection) Parameters
+# -----------------------------------------------------------------------------
+use_FDI_attack: false #whether or not to corrupt sensor measurements
+attack_fraction: 0.5 #fraction of sensors to compromise (i.e., to inject false data into)
+attack_epsilon: 0.10 #magnitude (scaling) of the voltage perturbation (a larger epsilon means a more aggressive attack that is easier to detect, while a smaller epsilon means a more stealthy attack that is harder to detect)
+device_level_FDI: true # if true, then the FDI attack will be applied at the device level; FDI voltages will be sent to inverter federates (note that state estimation and denoising will not be applied since inverters sense local voltage); if false, then the FDI attack will be applied at the sensor level (i.e., corrupted voltages will be sent to the voltage processing federate, and state estimation and denoising will be applied as configured in the State Estimation Parameters section)
+# =============================================================================
+
+
+
+# =============================================================================
+# Denoising Parameters
+# -----------------------------------------------------------------------------
+# Notes:
+#   - the denoiser is a neural network that must be pre-trained before being used in simulation
+#   - the denoiser can be applied at a fixed frequency
+
+use_denoiser: false
+denoiser_model: "Attention_Denoise_best_h0_tw20" #name of the denoiser model to use (the model should be located in the inputs/denoisers directory, and the name should match the name of the subdirectory within inputs/denoisers where the model is located)
+denoising_interval: 0 # interval in seconds between denoising operations (i.e. if denoising_interval is 10, then denoising will be applied every 10 seconds; setting to 0 will default to the simulation time_step, applying denoising at every timestep)
+denoiser_time_window: 20 #number of past timesteps to use as input to the denoiser (e..g. a sliding window of 20 consecutive complex voltage phasors per node will be used as input to the denoiser)
+num_mini_batch: 10 #number of mini-batches to use when running the denoiser (this is used to split the input data into smaller batches for processing by the denoiser, which can help reduce memory usage and speed up inference; the optimal number of mini-batches may depend on the size of the input data and the available computational resources, so it may require some experimentation to find the best value)
+# =============================================================================
+
+
+
+# =============================================================================
+# Variable Reference Mapping
+# -----------------------------------------------------------------------------
+# All code related to state estimation, denoising, and FDI attacks originally came from ***** [ Code based on UCF repo: https://github.com/Sandymiguel137/State_Estimation_and_Denoising ] ***** 
+# the variables used in PyMAGIC's implementation were renamed to better match conventions used in the rest of the codebase; the following table maps the original variable names to the new names used in PyMAGIC as a reference for any developers
+# =============================================================================
+# OLD VARIABLES FROM UCF REPO -> NEW VARIABLES IN PYMAGIC
+# - FDI_ATTACK -> use_FDI_attack
+# - ATTACK_FRAC -> attack_fraction
+# - EPS -> attack_epsilon
+# - LAMBDA -> se_lambda
+# - W_U -> w_u
+# - EPS_REG -> eps_reg
+# - PINV_RC -> pinv_rc
+# - SIGMA_P_ABS -> sigma_p_abs
+# - SIGMA_Q_ABS -> sigma_q_abs
+# - SIGMA_U_ABS -> sigma_u_abs
+# - SIGMA_S_ABS -> derived internally from sigma_p_abs and sigma_q_abs
+# - W_S -> derived internally from w_u, sigma_u_abs, and SIGMA_S_ABS
+# - DSS_FILE -> data_folder (specified in sim.yaml)
+# - ADD_NOISE -> add_noise
+# - SENSOR_PERCENTAGE -> monitored_sensor_percentage
+# - DEAD_THRESHOLD -> dead_node_threshold
+# - PF_RES -> pf_residential
+# - PF_COM -> pf_commercial
+# - num_mini_batch -> num_mini_batch 
+# - denoiser_time_window -> Twindow 
+# - sample_interval -> rmse_window_size
+
+
+# Variables and helpers that are specific to the UCF repo:
+# - LOAD_DATA_DIR
+# - GREEDY_CSV
+# - YORDER_JSON
+# - YBUS_FILE
+# - V_FILE
+# - TEST_MODE
+# - TEST_TIMESTEPS
+# - TEST_SAMPLE_EVERY
+# - SAMPLE_EVERY
+
+
+# sensor.yaml variables that are specific to PyMAGIC:
+# - regenerate_sensor_set
+# - num_sensors
+# - node_coverage
+# - include_monitors
+# - exclude_dead_nodes
+# - sensor_basis_rank
+# - n_jobs
+# - use_sparse_svd
+# - use_state_estimation
+# - state_estimation_random
+# - device_level_FDI
+# - use_denoiser
+# - denoiser_model
+# - denoising_interval
+# =============================================================================

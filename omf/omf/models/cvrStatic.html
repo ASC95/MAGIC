@@ -1,0 +1,363 @@
+<head>
+	{{ omfHeaders }}
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name= "inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-cvrStatic" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{allInputDataDict.modelType}}" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label>Feeder</label>
+				<button id="feederButton" type="button" onclick="javascript:editFeeder(allInputData.modelName,1);" style="display:block;width:125px;">Open Editor</button>
+				<input type="text" id="feederName1" name="feederName1" value="{{allInputDataDict.feederName1}}" style="display:none">
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/></td>
+			</div>
+			<div class="shortInput">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/></td>
+			</div>
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/></td>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Capital Cost<span class="classic">Installation captial cost<br> Type: <em>float</em></span></label>
+				<input type="text" id="capitalCost" name="capitalCost" value="{{allInputDataDict.capitalCost}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">OM Cost<span class="classic">Operating and maintainance cost<br> Type: <em>float</em></span></label>
+				<input type="text" id="omCost" name="omCost" value="{{allInputDataDict.omCost}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Wholesale Energy Cost ($/kWh)</label>
+				<input type="text" id="wholesaleEnergyCostPerKwh" name="wholesaleEnergyCostPerKwh" value="{{allInputDataDict.wholesaleEnergyCostPerKwh}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Retail Energy Cost ($/kWh)</label>
+				<input type="text" id="retailEnergyCostPerKwh" name="retailEnergyCostPerKwh" value="{{allInputDataDict.retailEnergyCostPerKwh}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Spring Demand Charge ($/kW)</label>
+				<input type="text" id="peakDemandCostSpringPerKw" name="peakDemandCostSpringPerKw" value="{{allInputDataDict.peakDemandCostSpringPerKw}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Summer Demand Charge ($/kW)</label>
+				<input type="text" id="peakDemandCostSummerPerKw" name="peakDemandCostSummerPerKw" value="{{allInputDataDict.peakDemandCostSummerPerKw}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Fall Demand Charge ($/kW)</label>
+				<input type="text" id="peakDemandCostFallPerKw" name="peakDemandCostFallPerKw" value="{{allInputDataDict.peakDemandCostFallPerKw}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Winter Demand Charge ($/kW)</label>
+				<input type="text" id="peakDemandCostWinterPerKw" name="peakDemandCostWinterPerKw" value="{{allInputDataDict.peakDemandCostWinterPerKw}}" pattern="^\d+\.?\d*$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">baselineTap</label>
+				<input type="text" id="baselineTap" name="baselineTap" value="{{allInputDataDict.baselineTap}}" /></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Z (%)</label>
+				<input type="text" id="z_percent" name="z_percent" value="{{allInputDataDict.z_percent}}" /></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">I (%)</label>
+				<input type="text" id="i_percent" name="i_percent" value="{{allInputDataDict.i_percent}}" /></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">P (%)</label>
+				<input type="text" id="p_percent" name="p_percent" value="{{allInputDataDict.p_percent}}" /></td>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Power factor</label>
+				<input type="text" id="power_factor" name="power_factor" value="{{allInputDataDict.power_factor}}" /></td>
+			</div>
+			<hr>
+			<div class="wideInput">
+				<table>
+					<tr>
+						<th></th>
+						<th>January</th>
+						<th>February</th>
+						<th>March</th>
+						<th>April</th>
+						<th>May</th>
+						<th>June</th>
+						<th>July</th>
+						<th>August</th>
+						<th>September</th>
+						<th>October</th>
+						<th>November</th>
+						<th>December</th>
+					</tr>
+					<tr>
+						<th>Avg Load</th>
+						<td><input type="text" id="janAvg" name="janAvg" value="{{allInputDataDict.janAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="febAvg" name="febAvg" value="{{allInputDataDict.febAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="marAvg" name="marAvg" value="{{allInputDataDict.marAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="aprAvg" name="aprAvg" value="{{allInputDataDict.aprAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="mayAvg" name="mayAvg" value="{{allInputDataDict.mayAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="junAvg" name="junAvg" value="{{allInputDataDict.junAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="julAvg" name="julAvg" value="{{allInputDataDict.julAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="augAvg" name="augAvg" value="{{allInputDataDict.augAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="sepAvg" name="sepAvg" value="{{allInputDataDict.sepAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="octAvg" name="octAvg" value="{{allInputDataDict.octAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="novAvg" name="novAvg" value="{{allInputDataDict.novAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="decAvg" name="decAvg" value="{{allInputDataDict.decAvg}}" pattern="^\d+\.?\d*$" required="required"></td>
+					</tr>
+					<tr>
+						<th>Peak Load</th>
+						<td><input type="text" id="janPeak" name="janPeak" value="{{allInputDataDict.janPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="febPeak" name="febPeak" value="{{allInputDataDict.febPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="marPeak" name="marPeak" value="{{allInputDataDict.marPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="aprPeak" name="aprPeak" value="{{allInputDataDict.aprPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="mayPeak" name="mayPeak" value="{{allInputDataDict.mayPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="junPeak" name="junPeak" value="{{allInputDataDict.junPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="julPeak" name="julPeak" value="{{allInputDataDict.julPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="augPeak" name="augPeak" value="{{allInputDataDict.augPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="sepPeak" name="sepPeak" value="{{allInputDataDict.sepPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="octPeak" name="octPeak" value="{{allInputDataDict.octPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="novPeak" name="novPeak" value="{{allInputDataDict.novPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+						<td><input type="text" id="decPeak" name="decPeak" value="{{allInputDataDict.decPeak}}" pattern="^\d+\.?\d*$" required="required"></td>
+					</tr>
+				</table>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<div id="output">
+		<script type="text/javascript">
+		function insertMetric(tableId, name, vector) {
+				// Add a vector to a table as a row.
+				table = gebi(tableId)
+				newRow = table.insertRow()
+				newRow.insertCell().innerHTML = name
+				for (i=0; i<vector.length; i++) {
+					cell = newRow.insertCell()
+					cell.innerHTML = vector[i]
+				}
+			}
+		</script>
+		<p class="reportTitle">Historical Loads</p>
+		<div id="scadaReport" class="tightContent">
+			<script type="text/javascript">
+				new Highcharts.Chart({
+					"chart":{
+						"height": 200,
+						"width": 1000,
+						"renderTo": "scadaReport",
+						"type": "column"
+					},
+					"title":{
+						"text":null
+					},
+					"legend":{
+						"layout":"horizontal",
+						"align":"top",
+						"verticalAlign":"top",
+						"x":50,
+						"y":-10,
+						"borderWidth":0
+					},
+					"credits":{
+						"enabled":false
+					},
+					"tooltip":{
+						"valueDecimals":1
+					},
+					"xAxis": {
+						"categories": allOutputData["monthName"]
+					},
+					"yAxis": {
+						"title": {
+							"text": "Historical Power Con(KW)",
+							"style":{
+								"color":"gray"
+							}
+						}
+					},
+					"plotOptions": {
+						"column": {
+							"pointPadding": 0.2,
+							"borderWidth": 0,
+						}
+					},
+					"series":[{
+						"data": allOutputData["histPeak"],
+						"type": "column",
+						"color": "darkgrey",
+						"name": "histPeak"
+					},{
+						"data": allOutputData["histAverage"],
+						"type": "column",
+						"color": "grey",
+						"name": "histAverage"
+					}]
+				})
+			</script>
+		</div>
+		<p class="reportTitle" style="page-break-before:always">One Line Diagram</p>
+		<div id="feederReport" class="tightContent">
+			<img id="feederChart" />
+			<script type="text/javascript">gebi("feederChart").src = "data:image/png;base64," + allOutputData.feederChart</script>
+		</div>
+		<p class="reportTitle" style="page-break-before:always">Projected Savings by Month</p>
+		<div id="spendReport" class="tightContent">
+			<script type="text/javascript">
+				new Highcharts.Chart({
+					"chart":{
+						"height": 200,
+						"width": 1000,
+						"renderTo": "spendReport",
+						"type": "column"
+					},
+					"title":{
+						"text":null
+					},
+					"legend":{
+						"layout":"horizontal",
+						"align":"top",
+						"verticalAlign":"top",
+						"x":50,
+						"y":-10,
+						"borderWidth":0
+					},
+					"credits":{
+						"enabled":false
+					},
+					"tooltip":{
+						"valueDecimals":1
+					},
+					"xAxis": {
+						"categories": allOutputData["monthName"]
+					},
+					"yAxis": {
+						"title": {
+							"text": "Utility Savings ($)",
+							"style":{
+								"color":"gray"
+							}
+						}
+					},
+					"plotOptions": {
+						"column": {
+							"pointPadding": 0.2,
+							"borderWidth": 0,
+							"stacking": 'normal'
+						}
+					},
+					"series":[{
+						"data": allOutputData["energyReductionDollars"],
+						"type": "column",
+						"color": "blue",
+						"name": "Energy Reduction"
+					},{
+						"data": allOutputData["lossReductionDollars"],
+						"type": "column",
+						"color": "green",
+						"name": "Loss Reduction"
+					},{
+						"data": allOutputData["peakReductionDollars"],
+						"type": "column",
+						"color": "red",
+						"name": "Peak Reduction"
+					}]
+				})
+			</script>
+		</div>
+		<p class="reportTitle">Projected Avoided Cost</p>
+		<div id="savingsReport" class="tightContent">
+			<script type="text/javascript">
+				paybackYear = null
+				for (i=0; i<=30; i++) {
+					if (allOutputData["annualSave"][i]>=0) {paybackYear = i; break}
+				}
+				paybackLine = []
+				if (paybackYear != null) {
+					paybackLine = [{
+						"color": "green", // Color value
+						"value": paybackYear, // Value of where the line will appear
+						"width": 1, // Width of the line
+						"label": {"text": "Simple Payback"}
+					}]
+				}
+				new Highcharts.Chart({
+					"chart":{
+						"height": 200,
+						"width": 1000,
+						"renderTo": "savingsReport",
+						"type": "line"
+					},
+					"title":{
+						"text":null
+					},
+					"legend":false,
+					"credits":{
+						"enabled":false
+					},
+					"tooltip":{
+						"valuePrefix":"$",
+						"valueDecimals":1,
+						formatter: function () {return 'Net return after <b>' + this.x + '</b> years is <b>$' + this.y.toFixed(2) + '</b>'}
+					},
+					"xAxis": {
+						"plotLines": paybackLine,
+						"tickInterval":1,
+						"minorTickColor":"gray",
+						"minorTickInterval":5
+					},
+					"yAxis": {
+						"title": {
+							"text": "Cumulative Savings ($)",
+							"style":{
+								"color":"gray"
+							}
+						}
+					},
+					"plotOptions": {
+					},
+					"series":[{
+						"data": allOutputData["annualSave"],
+						"color": "blue",
+						"name": "Cumulative Savings ($)"
+					}]
+				})
+			</script>
+		</div>
+		<p class="reportTitle">Power Flows at Various Loads</p>
+		<div id="powerflowReport" class="tightContent tableReport">
+			<table id="powerflowReportTable"></table>
+			<script type="text/javascript">
+				for (row in allOutputData["monthDataMat"]){
+					insertMetric("powerflowReportTable","", allOutputData["monthDataMat"][row])
+				}
+			</script>
+		</div>
+		<p class="reportTitle">Savings at Various Loads</p>
+		<div id="moneyReport" class="tightContent tableReport">
+			<table id="moneyReportTable"></table>
+			<script type="text/javascript">
+				for (row in allOutputData["monthDataPart"]){
+					insertMetric("moneyReportTable","", allOutputData["monthDataPart"][row])
+				}
+			</script>
+		</div>
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

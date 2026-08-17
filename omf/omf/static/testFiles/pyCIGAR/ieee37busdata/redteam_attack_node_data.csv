@@ -1,0 +1,5 @@
+node,device,hacked_device,adversary_controller,hack_start,percentage_hack,hack_end,attack_type,attack_parameters
+s701a,pv_device,hacked_pv_inverter_device,hacked_controller_pv,200,0,400,PV_Connect_Disconnect,
+s701a,pv_device,hacked_pv_inverter_device,hacked_controller_pv,250,0,450,volt_var_attack,
+#s701a,battery_device,hacked_pv_inverter_device,hacked_controller_pv,250,0,450,Topology_attack,
+#s701a,load_device,hacked_load_device,hacked_controller_load,50,0,100,load_scaling,scalingfactor:0.9

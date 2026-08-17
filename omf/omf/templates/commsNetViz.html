@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>GeoJSON Map</title>
+<head>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" integrity="sha512-07I2e+7D8p6he1SIM+1twR5TIrhUQn9+I6yjqD53JQjFiMf8EtC93ty0/5vJTZGF8aAocvHYNEDJajGdNx1IsQ=="
+		crossorigin="" />
+	<script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js" integrity="sha512-A7vV8IFfih/D732iSSKi20u/ooOfj/AGehOKq0f4vLT1Zr2Y+RX7C+w8A1gaSasGtRUZpF/NZgzSAu4/Gc41Lg=="
+		crossorigin=""></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script>
+		const csrfToken = "{{ csrf_token() }}";
+		$(function() {
+			$.ajaxSetup({
+				beforeSend: function(xhr, settings) {
+					const method = String((settings && (settings.type || settings.method)) || 'GET').toUpperCase();
+					if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(method) && csrfToken) {
+						xhr.setRequestHeader('X-CSRFToken', csrfToken);
+					}
+				}
+			});
+		});
+	</script>
+</head>
+	<style>html, body {
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;}
+	</style>
+	<style>#map{
+		position: relative;
+		width: 100.0%;
+		height: 100.0%;
+		left: 0.0%;
+		top: 0.0%;
+		}
+
+		.selectedControl{
+		background-color: yellow;
+		}
+
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+	<script>var geojson={% if geojson %}{{geojson | tojson}}{% else %}null{% endif %}</script>
+	{% if not geojson %}<script type="text/javascript" src="commsGeoJson.js"></script>{% endif %}
+	<script type="text/javascript">
+
+	//Add popup to each node/edge with the properties
+	function onEachFeature(feature, layer) {
+		if (feature.geometry['type'] == 'Point' || feature.geometry['type'] == 'LineString'){
+			let popupContent = '';
+			let popupContainer = L.DomUtil.create('div');
+			popupContainer.id = feature.properties['name'];
+			//CReate the popup html with keys and values of proprties
+			for (let key in feature.properties) {
+				if (feature.properties.hasOwnProperty(key)) {
+					let geoPair = L.DomUtil.create('div');
+					let geoKey = L.DomUtil.create('div');
+					geoKey.classList.add('geoKey');
+					//geoKey.classList.add(key);
+					geoKey.style.display = 'inline-block';
+					geoKey.innerHTML = '<b>'+key +': </b>';
+					let geoValue = L.DomUtil.create('div');
+					geoValue.classList.add('geoValue');
+					geoValue.classList.add(key);
+					geoValue.style.display = 'inline-block';
+					geoValue.innerHTML = feature.properties[key];
+					geoValue.contentEditable = "true";
+					geoPair.appendChild(geoKey);
+					geoPair.appendChild(geoValue);
+					popupContainer.appendChild(geoPair);
+				};
+			};
+			//Adding longitude/latitude to editable options
+			if (feature.geometry['type'] == 'Point'){
+					let geoPair = L.DomUtil.create('div');
+					let geoKey = L.DomUtil.create('div');
+					geoKey.classList.add('geoKey');
+					geoKey.style.display = 'inline-block';
+					geoKey.innerHTML = '<b>Longitude: </b>';
+					let geoValue = L.DomUtil.create('div');
+					geoValue.classList.add('geoValue');
+					geoValue.classList.add('geoLongitude');
+					geoValue.style.display = 'inline-block';
+					geoValue.innerHTML = feature.geometry.coordinates[0];
+					geoValue.contentEditable = "true";
+					geoPair.appendChild(geoKey);
+					geoPair.appendChild(geoValue);
+					popupContainer.appendChild(geoPair);
+					geoPair = L.DomUtil.create('div');
+					geoKey = L.DomUtil.create('div');
+					geoKey.classList.add('geoKey');
+					geoKey.style.display = 'inline-block';
+					geoKey.innerHTML = '<b>Latitude: </b>';
+					geoValue = L.DomUtil.create('div');
+					geoValue.classList.add('geoValue');
+					geoValue.classList.add('geoLatitude');
+					geoValue.style.display = 'inline-block';
+					geoValue.innerHTML = feature.geometry.coordinates[1];
+					geoValue.contentEditable = "true";
+					geoPair.appendChild(geoKey);
+					geoPair.appendChild(geoValue);
+					popupContainer.appendChild(geoPair);
+			};
+			let geoUpdateButton = L.DomUtil.create('input');
+			L.DomEvent.disableClickPropagation(geoUpdateButton);
+			geoUpdateButton.type = 'submit';
+			geoUpdateButton.value = 'Save Updates';
+			geoUpdateButton.addEventListener('click', geoEdit);
+			popupContainer.appendChild(geoUpdateButton);
+			layer.bindPopup(popupContainer);
+		};
+	}
+
+	//Update geojson object on edit inline
+	function geoEdit(e){
+		e.preventDefault();
+		let currentElementDiv = e.target.parentNode;
+		let nodeId = currentElementDiv.id;
+		let currentFeature = geojson.features.findIndex(getFeature, currentElementDiv);
+		currentElementDiv.getElementsByClassName("geoValue");
+		//Update the properties in the geojson to the current text values
+		for (let key in geojson.features[currentFeature].properties) {
+			if (geojson.features[currentFeature].properties.hasOwnProperty(key)){
+				let newValue;
+				if (key == 'substation' || key =='smartMeter' || key == 'rfCollector'){
+					newValue = (currentElementDiv.getElementsByClassName(key)[0].textContent === 'true');
+				}
+				else if (key == 'bandwidthUse' || key == 'bandwidthCapacity'){
+					newValue = parseFloat(currentElementDiv.getElementsByClassName(key)[0].textContent);
+				}
+				else{
+					newValue = currentElementDiv.getElementsByClassName(key)[0].textContent;
+				}
+				//console.log(typeof(newValue));
+				geojson.features[currentFeature].properties[key] = newValue;
+				//console.log(geojson.features[currentFeature].properties[key]);
+			}
+		}
+		//Update the coordinates
+		geojson.features[currentFeature].geometry.coordinates = [parseFloat(currentElementDiv.getElementsByClassName('geoLongitude')[0].textContent),
+		parseFloat(currentElementDiv.getElementsByClassName('geoLatitude')[0].textContent)];
+		geojsonLayer.eachLayer(function(layer){
+			if (layer.feature.properties.name == nodeId){
+				layer.remove();
+			}
+		});
+		//add layer with new data
+		geojsonLayer.addData(geojson.features[currentFeature]);
+	}
+
+	//how to get feature index
+	function getFeature(feature){
+		return feature.properties.name == this.id;
+	}
+
+	//Set how comms nodes are displayed
+	function pointToLayerNode(feature, latlng) {
+		let fillColorValue = 'black';
+		if (feature.properties['substation']){
+			fillColorValue = 'orange';
+		return L.circleMarker(latlng, {
+			radius: 8,
+			fillColor: fillColorValue,
+			color: "#000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.8
+		});
+		}
+		else if (feature.properties['smartMeter']){
+			fillColorValue = 'blue';
+		return L.circleMarker(latlng, {
+			radius: 8,
+			fillColor: fillColorValue,
+			color: "#000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.8
+		});
+		}
+		else if (feature.properties['rfCollector']){
+			fillColorValue = 'green';
+		return L.circleMarker(latlng, {
+			radius: 8,
+			fillColor: fillColorValue,
+			color: "#000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.8
+		});
+		}
+		else {
+			fillColorValue = 'white';
+		return L.circleMarker(latlng, {
+			radius: 8,
+			fillColor: fillColorValue,
+			color: "#000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.2
+		});
+		}
+	}
+
+	//Set the line style for edges
+	function lineStyle(feature){
+		if (feature.geometry['type'] == 'LineString'){
+			if (feature.properties['rf']){
+				return {
+					"color": "red",
+					"dashArray": "10"
+				}
+			}
+			else if (feature.properties['fiber']){
+				return {
+					"color": "yellow",
+				}
+			}
+			else {
+				return {
+					"color": "black",
+					"opacity": "0.2"
+				}
+			}
+		}
+		else if (feature.geometry['type'] == 'Polygon'){
+			return {
+				"stroke": "#4f0154",
+			}
+		}
+	}
+	var geojsonLayer = L.geoJSON(false, {
+				pointToLayer: pointToLayerNode,
+				onEachFeature: onEachFeature,
+				style: lineStyle,
+			});
+	geojson.features.forEach(function(feature){
+		if (feature.geometry['type'] == 'Point'){
+			geojsonLayer.addData(feature);
+		}
+		else if (feature.geometry['type'] == 'LineString'){
+			geojsonLayer.addData(feature);
+		}
+		else if (feature.geometry['type'] == 'Polygon'){
+			geojsonLayer.addData(feature);
+		}
+	});
+	var bounds = geojsonLayer.getBounds();
+	// Optional forcing of canvas renderer:
+	var map = L.map('map', {renderer: L.canvas()}).fitBounds(bounds);
+	mapLink = '<a href="http://openstreetmap.org">OpenStreetMap</a>';
+	var tileLayer = L.tileLayer(
+		'http://tile.memomaps.de/tilegen/{z}/{x}/{y}.png', {
+		attribution: '&copy; ' + mapLink + ' Contributors',
+		maxZoom: 18,
+		});
+	tileLayer.addTo(map);
+	L.control.scale().addTo(map);
+	geojsonLayer.addTo(map);
+
+	//Control box
+	L.Control.Toolbox = L.Control.extend({
+	    onAdd: function(map) {
+	        var toolDiv = L.DomUtil.create('div');
+	        toolDiv.id = 'toolDiv';
+	        toolDiv.style.width = '200px';
+	        toolDiv.style.background = 'white';
+	        return toolDiv;
+	    },
+	    onRemove: function(map) {
+	    }
+	});
+
+	L.control.toolbox = function(opts) {
+	    return new L.Control.Toolbox(opts);
+	}
+
+	L.control.toolbox({ position: 'topright'}).addTo(map);
+
+	//Get all comms objects in the network
+	function selectCommsObjects(){
+		let commsObjects = [];
+		geojsonLayer.eachLayer(function (layer) {
+			if (layer.feature.geometry['type'] == 'LineString'){
+				if ((layer.feature.properties.rf) || (layer.feature.properties.fiber)){
+					commsObjects.push(layer);
+				}
+			}
+			else if (layer.feature.geometry['type'] == 'Point'){
+				if ((layer.feature.properties.rfCollector) || (layer.feature.properties.substation) || (layer.feature.properties.smartMeter)){
+					commsObjects.push(layer);
+				}
+			};
+		});
+		return commsObjects;
+	}
+
+	//get all non communications objects in the grid
+	function selectNonCommsObjects(){
+		let nonCommsObjects = [];
+		geojsonLayer.eachLayer(function (layer) {
+			if (layer.feature.geometry['type'] == 'LineString'){
+				if (!(layer.feature.properties.rf) & !(layer.feature.properties.fiber)){
+					nonCommsObjects.push(layer);
+				}
+			}
+			else if (layer.feature.geometry['type'] == 'Point'){
+				if (!(layer.feature.properties.rfCollector) && !(layer.feature.properties.substation) && !(layer.feature.properties.smartMeter)){
+					nonCommsObjects.push(layer);
+				}
+			};
+		});
+		return nonCommsObjects;
+	}
+
+	//Hide non objects on the grid from an input array of layers
+	function hideGridObjects(gridObject){
+		gridObject.forEach(function (layer) {
+			if (layer.feature.geometry['type'] == 'LineString'){
+				layer.setStyle({"opacity": 0, "interactive": false});
+			}
+			else if (layer.feature.geometry['type'] == 'Point'){
+				layer.setStyle({"fillOpacity": 0,"opacity": 0, "interactive": false});
+			};
+		});
+	}
+
+	//Resets hidden grid objects
+	function showGridObjects(gridObject){
+		gridObject.forEach(function (layer) {
+			if (layer.feature.geometry['type'] == 'LineString'){
+				geojsonLayer.resetStyle(layer);
+			}
+			else if (layer.feature.geometry['type'] == 'Point'){
+				geojsonLayer.resetStyle(layer);
+			};
+		});
+	}
+
+	//to do create a loop to automate process for additonal controls
+	var displayNonComms = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(displayNonComms);
+	displayNonComms.id = 'displayNonComms';
+	displayNonComms.classList.add('mapControl');
+	displayNonComms.innerHTML = 'Show full grid';
+	document.getElementById('toolDiv').appendChild(displayNonComms);
+	displayNonComms.addEventListener('click', function(){showGridObjects(selectNonCommsObjects())});
+
+	
+	var hideNonComms = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(hideNonComms);
+	hideNonComms.id = 'hideNonComms';
+	hideNonComms.classList.add('mapControl');
+	hideNonComms.innerHTML = 'Show comms grid';
+	document.getElementById('toolDiv').appendChild(hideNonComms);
+	hideNonComms.addEventListener('click', function(){hideGridObjects(selectNonCommsObjects())});
+
+	//get max meshlayer
+	function selectMeshLevels(){
+		let meshLayers = [];
+		geojsonLayer.eachLayer(function (layer) {
+			if (layer.feature.geometry['type'] == 'Polygon'){
+				if (layer.options.opacity != 0){
+					meshLayers.push(layer);
+				}
+			}
+		});
+		let currentMaxMesh = Math.max(Math.max.apply(Math, meshLayers.map(function(layer) { return layer.feature.properties.meshLevel; })),0);
+		return currentMaxMesh;
+	}
+
+	function increaseMesh(meshMax){
+		geojsonLayer.eachLayer(function (layer) {
+			if (layer.feature.geometry['type'] == 'Polygon'){
+				if (layer.feature.properties.meshLevel <= (meshMax + 1)){
+					geojsonLayer.resetStyle(layer);
+				}
+				else{
+					layer.setStyle({"fillOpacity": 0,"opacity": 0, "interactive": false});
+				}
+			}
+		});
+	}
+
+	function decreaseMesh(meshMax){
+		geojsonLayer.eachLayer(function (layer) {
+			if (layer.feature.geometry['type'] == 'Polygon'){
+				if (layer.feature.properties.meshLevel < meshMax){
+					geojsonLayer.resetStyle(layer);
+				}
+				else {
+					layer.setStyle({"fillOpacity": 0,"opacity": 0, "interactive": false});
+				}
+			}
+		});
+	}
+
+	var incrementMesh = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(incrementMesh);
+	incrementMesh.id = 'incrementMesh';
+	incrementMesh.classList.add('mapControl');
+	incrementMesh.innerHTML = 'Extend Mesh';
+	document.getElementById('toolDiv').appendChild(incrementMesh);
+	incrementMesh.addEventListener('click', function(){increaseMesh(selectMeshLevels())});
+
+	var decrementMesh = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(decrementMesh);
+	decrementMesh.id = 'decrementMesh';
+	decrementMesh.classList.add('mapControl');
+	decrementMesh.innerHTML = 'Decrease Mesh';
+	document.getElementById('toolDiv').appendChild(decrementMesh);
+	decrementMesh.addEventListener('click', function(){decreaseMesh(selectMeshLevels())});
+
+	//Form div for searching for geojson object by name
+	L.Control.Search = L.Control.extend({
+	    onAdd: function(map) {
+	        var searchDiv = L.DomUtil.create('div');
+	        searchDiv.id = 'searchDiv';
+	        searchDiv.style.height = 'auto';
+	        searchDiv.style.width = '200px';
+	        searchDiv.style.background = 'white';
+	        return searchDiv;
+	    },
+	    onRemove: function(map) {
+	    }
+	});
+
+	L.control.search = function(opts) {
+	    return new L.Control.Search(opts);
+	}
+
+	L.control.search({ position: 'topright'}).addTo(map);
+
+	var searchForm = L.DomUtil.create('form');
+	L.DomEvent.disableClickPropagation(searchForm);
+	searchForm.id = 'searchForm';
+	searchForm.name = 'searchForm';
+	searchForm.classList.add('mapControl');
+	document.getElementById('searchDiv').appendChild(searchForm);
+
+	var featureName = L.DomUtil.create('input');
+	featureName.id = 'featureName';
+	featureName.type = 'text';
+	featureName.name = 'featureName';
+	featureName.placeholder = 'Name';
+	document.getElementById('searchForm').appendChild(featureName);
+
+	var searchSubmit = L.DomUtil.create('input');
+	L.DomEvent.disableClickPropagation(searchSubmit);
+	searchSubmit.id = 'searchSubmit';
+	searchSubmit.type = 'submit';
+	searchSubmit.value = 'Find object';
+	searchSubmit.classList.add('mapControl');
+	document.getElementById('searchForm').appendChild(searchSubmit);
+	searchSubmit.addEventListener('click', featureSearch);
+
+	//opens popup for name entered in search field
+	function featureSearch(e){
+		e.preventDefault();
+		geojsonLayer.eachLayer(function(feature){
+			if (feature.feature.properties.name == document.getElementById('featureName').value){
+				feature.openPopup();
+			}
+		});
+	}
+	
+	//redisplay grid with edits
+	function redisplayGrid(){
+		$.ajax({
+		    type: 'POST',
+		    url: '/redisplayGrid',
+		    dataType: 'json',
+		    contentType: 'application/json; charset=utf-8',
+		    data: JSON.stringify(geojson),
+		    success: function(callback) {
+		    	geojson = callback.newgeojson;
+		    	geojsonLayer.eachLayer(function(layer){
+		    		layer.remove();
+		    	});
+		    	geojsonLayer.clearLayers();
+				geojson.features.forEach(function(feature){
+					if (feature.geometry['type'] == 'Point'){
+						geojsonLayer.addData(feature);
+					}
+					else if (feature.geometry['type'] == 'LineString'){
+						geojsonLayer.addData(feature);
+					}
+				});
+		    },
+		    error: function() {
+		        $(this).html("error!");
+		    }
+		});
+	}
+	var gridRedisplay = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(gridRedisplay);
+	gridRedisplay.id = 'gridRedisplay';
+	gridRedisplay.classList.add('mapControl');
+	gridRedisplay.innerHTML = 'Redisplay grid';
+	document.getElementById('toolDiv').appendChild(gridRedisplay);
+	gridRedisplay.addEventListener('click', function(){redisplayGrid()});
+
+	//redisplay grid with edits
+	function saveCommsMap(){
+		$.ajax({
+		    type: 'POST',
+		    url: `/saveCommsMap/{{owner}}/{{modelName}}/{{feederName}}/{{feederNum}}`,
+		    dataType: 'json',
+		    contentType: 'application/json; charset=utf-8',
+		    data: JSON.stringify(geojson),
+		    success: function(callback) {
+		    	console.log(callback.savemessage);
+		    },
+		    error: function() {
+		        $(this).html("error!");
+		    }
+		});
+	}
+	var saveOmcFile = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(saveOmcFile);
+	saveOmcFile.id = 'gridRedisplay';
+	saveOmcFile.classList.add('mapControl');
+	saveOmcFile.innerHTML = 'Save omc file';
+	document.getElementById('toolDiv').appendChild(saveOmcFile);
+	saveOmcFile.addEventListener('click', function(){saveCommsMap()});
+
+	//to do create a loop to automate process for additonal controls
+	var sateliteTiles = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(sateliteTiles);
+	sateliteTiles.id = 'sateliteTiles';
+	sateliteTiles.classList.add('mapControl');
+	sateliteTiles.innerHTML = 'Satelite View';
+	document.getElementById('toolDiv').appendChild(sateliteTiles);
+	sateliteTiles.addEventListener('click', function(){viewSatelite()});
+
+	var roadTiles = L.DomUtil.create('button');
+	L.DomEvent.disableClickPropagation(roadTiles);
+	roadTiles.id = 'roadTiles';
+	roadTiles.classList.add('mapControl');
+	roadTiles.innerHTML = 'Road View';
+	document.getElementById('toolDiv').appendChild(roadTiles);
+	roadTiles.addEventListener('click', function(){viewRoads()});
+
+	function viewSatelite(){
+		map.eachLayer(function(layer) {
+		    if( layer instanceof L.TileLayer ){
+		    	layer.setUrl('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+		   		map.attributionControl.removeAttribution('&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> Contributors');
+		    	map.attributionControl.addAttribution('&copy; Source: Esri, DigitalGlobe, GeoEye, i-cubed, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AEX, Getmapping, Aerogrid, IGN, IGP, swisstopo, and the GIS User Community.');
+		    }
+		});
+	}
+	function viewRoads(){
+		map.eachLayer(function(layer) {
+		    if( layer instanceof L.TileLayer ){
+		    	layer.setUrl('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+		    	map.attributionControl.addAttribution('&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> Contributors');
+		    	map.attributionControl.removeAttribution('&copy; Source: Esri, DigitalGlobe, GeoEye, i-cubed, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AEX, Getmapping, Aerogrid, IGN, IGP, swisstopo, and the GIS User Community.');
+		    }
+		});
+	}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<head>
+	{{ omfHeaders }}
+	<style>
+		#firstYearSummaryTable td, th {padding:7 0 5 0; text-align:left; font-size:0.8em;}
+	</style>
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+	<!--  Macro for direct file upload usage:
+		file_upload('fileInputID', 'userFileDisplayNameID', 'userFileDisplayNameID')
+		line 1: input for the actual file. There should be no value in inputDict that matches this one.
+		line 2: button for file upload, thats it.
+		line 3: the name of the file the user is using/inputting in. We wanna save this for display. Originally its set as the default.
+		line 4: This is hidden. This is the name of the file we want always = .csv name <- default naming convention 
+	-->
+	{% macro file_upload(fileInputID, userFileDisplayNameID, dataFileNameID) -%}
+    <input type="file" id="{{fileInputID}}" name="{{ allInputDataDict[dataFileNameID] }}" accept=".csv" class="fileButton" onchange="updateFileNameDisplay('{{fileInputID}}', '{{userFileDisplayNameID}}', '{{dataFileNameID}}')" style="display:none"><br>
+    <label for="{{fileInputID}}" class="fileButton">Choose File</label>
+    <input id="{{userFileDisplayNameID}}" name="{{userFileDisplayNameID}}" value="{{ allInputDataDict[userFileDisplayNameID] }}" readonly class="uploadFileName">
+    <input id="{{dataFileNameID}}" name= {{dataFileNameID}} type="hidden" value="{{ allInputDataDict[dataFileNameID] }}">
+	{% endmacro %}
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Inputs</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-demandResponse" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value={{modelName}} readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required"></td>
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput ">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Base Case</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label>Demand Charge Cost ($/kW)</label>
+				<input type="text" id="demandCharge" name="demandCharge" value="{{allInputDataDict.demandCharge}}" required="required" pattern="^\d+$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Retail Energy Cost ($/kWh)<span class="classic">Retail rate for residential consumers.</span></label>
+				<input type="text" id="retailCost" name="retailCost" value="{{allInputDataDict.retailCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Wholesale Energy Cost($/kWh)</label>
+				<input type="text" id="WholesaleEnergyCost" name="WholesaleEnergyCost" value="{{allInputDataDict.WholesaleEnergyCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Annual Load Growth (%)<span class="classic">Expected annual load growth. Used to project costs and benefits out 25 years to estimate lifetime value of the demand response program.</span></label>
+				<input type="text" id="ScalingAnnual" name="ScalingAnnual" value="{{allInputDataDict.ScalingAnnual}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Discount Rate (%)</label>
+				<input type="text" id="DiscountRate" name="DiscountRate" value="{{allInputDataDict.DiscountRate}}" required="required" pattern="^\d+\.?\d*?$">
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Demand Curve (.csv file)<span class="classic">Please see the documentation at the help link for the required format. If this field is blank the OMF will re-use the file from the previous run.</span></label>
+				<div>{{ file_upload('demandCurveDataFile', 'demandCurveUserDisplayName', 'demandCurveDataFileName') }}</div>
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Demand Response Program Variables</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label>Program Type</label>
+				<select id="rateStruct" name="rateStruct" value="{{allInputDataDict.rateStruct}}"/>
+					<option value="PTR" {% if allInputDataDict.rateStruct == 'PTR' %}selected{% endif %}>Peak Time Rebate (PTR)</option>
+					<option value="2tierCPP" {% if allInputDataDict.rateStruct == '2tierCPP' %}selected{% endif %}>Critical Peak Pricing (CPP)</option>
+					<option value="24hourly" {% if allInputDataDict.rateStruct == '24hourly' %}selected{% endif %}>Time of Use Hourly Pricing (TOU)</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label>Program Startup Cost ($)</label>
+				<input type="text" id="DrPurchInstallCost" name="DrPurchInstallCost" value="{{allInputDataDict.DrPurchInstallCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Annual DR operation Cost ($/year)</label>
+				<input type="text" id="AnnualDROperationCost" name="AnnualDROperationCost" value="{{allInputDataDict.AnnualDROperationCost}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Load Managed by the Program (%)</label>
+				<input type="text" id="LoadunderManagement" name="LoadunderManagement" value="{{allInputDataDict.LoadunderManagement}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>CPP Critical Peak Rate ($)</label>
+				<input type="text" id="rateCPP" name="rateCPP" value="{{allInputDataDict.rateCPP}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Number of CPP Days</label>
+				<input type="text" id="numCPPDays" name="numCPPDays" value="{{allInputDataDict.numCPPDays}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>CPP Non-Critical Peak Rate ($)</label>
+				<input type="text" id="PeakRate" name="PeakRate" value="{{allInputDataDict.PeakRate}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>CPP Off-Peak Rate ($)</label>
+				<input type="text" id="OffPeakRate" name="OffPeakRate" value="{{allInputDataDict.OffPeakRate}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>PTR Rate ($)</label>
+				<input type="text" id="ratePTR" name="ratePTR" value="{{allInputDataDict.ratePTR}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class= "shortInput">
+				<label>Daily Price Elasticity of Demand</label>
+				<input type="text" id="DailyPriceElasticity" name="DailyPriceElasticity" value="{{allInputDataDict.DailyPriceElasticity}}" required="required" pattern="^-?\d+\.?\d*?$">
+			</div>
+			<div class= "shortInput">
+				<label> Substitution Price Elasticity of Demand</label>
+				<input type="text" id="SubstitutionPriceElasticity" name="SubstitutionPriceElasticity" value="{{allInputDataDict.SubstitutionPriceElasticity}}" required="required" pattern="^-?\d+\.?\d*?$">
+			</div>
+			<div class="shortInput">
+				<label>Starting Month</label>
+				<input type="text" id="startMonth" name="startMonth" value="{{allInputDataDict.startMonth}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Ending Month</label>
+				<input type="text" id="stopMonth" name="stopMonth" value="{{allInputDataDict.stopMonth}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Starting Peak Hour</label>
+				<input type="text" id="startHour" name="startHour" value="{{allInputDataDict.startHour}}" required="required" pattern="^\d+\.?\d*?$"/>
+			</div>
+			<div class="shortInput">
+				<label>Ending Peak Hour</label>
+				<input type="text" id="stopHour" name="stopHour" value="{{allInputDataDict.stopHour}}" required="required" pattern="^\d+$"/>
+			</div>
+			<div class="shortInput" style="width:100%">
+				<label>TOU 24 Hourly Rates ($ CSV)</label>
+				<input type="text" id="rate24hourly" name="rate24hourly" value="{{allInputDataDict.rate24hourly}}" pattern="^(\d*\.?\d*)(,\s*\d*\.?\d*){23}$" required="required" />
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<div id="output">
+		<script type="text/javascript">
+			// Global Highcharts settings.
+			Highcharts.setOptions({global:{useUTC:true}})
+		</script>
+		<p class="reportTitle" style="page-break-before:always">Demand Before and After Program</p>
+		<div id="demandChangeReport" class="tightContent">
+			<div id="demandBattChart"></div>
+			<script>
+				new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"pointStart":Date.parse(allOutputData.startDate),
+							"shadow":false,
+							"pointInterval":3600000},
+						"line":{"marker":{"enabled":false}}},
+					"xAxis":{"maxZoom":108000000,
+						"tickColor":"gray",
+						"type":"datetime",
+						"lineColor":"gray",
+						"dateTimeLabelFormats":{ month: '%b', year: ''}
+					},
+					"yAxis":{
+						"title":{"text":"Power (kW)","style":{"color":"gray"}},
+						"min":allOutputData.differenceMin,
+						"plotLines":[
+							{"color": "lightgray",
+							"dashStyle": "ShortDash",
+							"width": 2,
+							"label":{"text":"Max Difference:" + allOutputData.differenceMax + "kW", "align":"right","y":-5,"x":-730, "style":{"color":"gray", "fontsize":"12px"}},
+							"value": allOutputData.differenceMax,"zIndex": 10}
+							]},
+					"title":{"text":null},
+					"series":[
+						{"name":"Historical","marker":{"enabled":false},"color":"red","data":allOutputData.demandLoad},
+						{"name":"After Program","marker":{"enabled":false},"color":"purple","data":allOutputData.modifiedLoad},
+						{"name":"Difference","marker":{"enabled":false},"color":"lightgray","data":allOutputData.difference}],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"demandBattChart","type":"line","marginRight":20, "height":750,"width":1000},
+					"tooltip":false,
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+			</script>
+		</div>
+		<p class="reportTitle"> First Year Financial Impact</p>
+		<div id="levelizedCostReport" class="tightContent">
+			<table id="firstYearSummaryTable" style="margin:5px; width:100%; font-size: medium">
+				<thead>
+					<th></th>
+					<th>Annual Demand (kWh)</th>
+					<th>Energy Sales ($)</th>
+					<th>Energy Cost ($)</th>
+					<th>Peak Demand Cost ($)</th>
+					<th>DR Program Cost ($)</th>
+				</thead>
+			</table>
+			<script>
+				function insertMetric(tableId, name, vector) {
+					// Add a vector to a table as a row.
+					table = gebi(tableId)
+					newRow = table.insertRow()
+					newRow.insertCell().innerHTML = "<div id=\"metric\">" + name + "</div>"
+					for (i=0; i<vector.length; i++) {
+						cell = newRow.insertCell()
+						cell.innerHTML = delimitNumbers(vector[i].toFixed(0))
+					}
+				}
+				insertMetric("firstYearSummaryTable","Base Case", allOutputData.BaseCase)
+				insertMetric("firstYearSummaryTable","Demand Response Case", allOutputData.DRCase)
+			</script>
+		</div>
+		<p class="reportTitle">Program Lifetime Cash Flow</p>
+		<div id="cashFlowReport" class="tightContent">
+			<div id="cashFlowChartDiv" style="border-radius:8px"></div>
+			<script>
+				new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{"column":{"stacking":'normal'},"series":{"animation":false,"shadow":false},"spline":{"animation":false,"shadow":false}},
+					"xAxis":{"title":{"text":"Year After Installation","style":{"color":"gray"}},"type":"linear","tickColor":"gray","tickInterval":1,"minorTickColor":"gray", "minorTickInterval":5,"lineColor":"gray", "min":0},
+					"title":{"text":"NPV:$" + delimitNumbers(allOutputData.npv.toFixed(0)) + ";  Payback:" + parseFloat(allOutputData.SimplePaybackPeriod).toFixed(2) + " years;  Benefit/Cost:" + parseFloat(allOutputData.BenefittoCostRatio).toFixed(2), "verticalAlign":"bottom", "align":"right", "y":-50, "x":-10, "style":{"color":"#333333", "fontSize":"12px"}},
+					"series":[{"name":"Op. and Maint. Costs", "data":allOutputData.AnnualOpCost},
+						{"name":"Purchase Costs", "data":allOutputData.lifePurchaseCosts},
+						{"name":"Energy Sale Change Benefit", "type":"column", "data":allOutputData.EnergySaleChangeBenefit},
+						{"name":"Peak Demand Reduction Benefit", "type":"column", "data":allOutputData.PeakDemandReduction},
+						{"name":"Cumulative", "type":"spline", "data":allOutputData.cumulativeNetBenefit}],
+					"yAxis":{"title":{"text":"Income ($)","style":{"color":"gray"}}},
+					"chart":{"marginBottom":55,"zoomType":"x","renderTo":"cashFlowChartDiv","type":"column","marginRight":25, "height":250,"width":1000},
+					"tooltip":{"valueDecimals":1},
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+			</script>
+		</div>
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

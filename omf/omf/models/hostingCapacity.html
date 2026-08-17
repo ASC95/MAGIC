@@ -1,0 +1,384 @@
+<head>
+	{{ omfHeaders }}
+	<style>
+		th {
+			position: sticky;
+			top: 0;
+			background-color: white;
+		}
+		table {
+			position: relative;
+		}
+		@media print {
+			#modelBasedHostingCapacityTable {overflow-y:visible !important; height:auto !important;}
+			#AMIhostingCapacityTable {overflow-y:visible !important; height:auto !important;}
+			#downlineHostingCapacityTable {overflow-y:visible !important; height:auto !important;}
+		}
+	</style>
+	<!-- Library Imports -->
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+	<!-- onload function ensures plotly is loaded to display graphs -->
+	<script type="text/javascript" src="{{pathPrefix}}/static/plotly-1.50.1.min.js" onload="plotGraph()"></script>
+	<script>
+		function plotGraph(graphTitle, graphData ) {
+			Plotly.newPlot(graphTitle, JSON.parse( graphData ) || {} )
+		}
+	</script>
+	<!--  Macro for direct file upload usage:
+		file_upload('fileInputID', 'userFileDisplayNameID', 'userFileDisplayNameID')
+		line 1: input for the actual file. There should be no value in inputDict that matches this one.
+		line 2: button for file upload, thats it.
+		line 3: the name of the file the user is using/inputting in. We wanna save this for display. Originally its set as the default.
+		line 4: This is hidden. This is the name of the file we want always = .csv name <- default naming convention 
+	-->
+	{% macro file_upload(fileInputID, userFileDisplayNameID, dataFileNameID) -%}
+    <input type="file" id="{{fileInputID}}" name="{{ allInputDataDict[dataFileNameID] }}" accept=".csv" class="fileButton" onchange="updateFileNameDisplay('{{fileInputID}}', '{{userFileDisplayNameID}}', '{{dataFileNameID}}')" style="display:none"><br>
+    <label for="{{fileInputID}}" class="fileButton">Choose File</label>
+    <input id="{{userFileDisplayNameID}}" name="{{userFileDisplayNameID}}" value="{{ allInputDataDict[userFileDisplayNameID] }}" readonly class="uploadFileName">
+    <input id="{{dataFileNameID}}" name= {{dataFileNameID}} type="hidden" value="{{ allInputDataDict[dataFileNameID] }}">
+	{% endmacro %}
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post" enctype="multipart/form-data">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-hostingCapacity" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required" readonly>
+			</div>
+			<div class="shortInput ">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			{% if modelStatus == 'finished' %}
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value={{allInputDataDict.runTime}} readonly/>
+			</div>
+			{% endif %}
+			<div class="shortInput">
+				<label class="tooltip">Circuit
+					<span class="classic">Open Circuit Editor</span>
+				</label>
+				<button id="feederButton" type="button" onclick="javascript:editFeeder(allInputData.modelName,1);" style="display:block;width:125px;">Open Editor</button>
+				<input type="text" id="feederName1" name="feederName1" value="{{allInputDataDict.feederName1}}" style="display:none">
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">AMI-Based Hosting Capacity</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label>Apply AMI-Based Hosting Capacity</label>
+				<select id="runAmiAlgorithm" name="runAmiAlgorithm" value="{{allInputDataDict.runAmiAlgorithm}}" required>
+					<option value="off" {% if allInputDataDict.runAmiAlgorithm == 'off' %}selected{% endif %}>Off</option>
+					<option value="on" {% if allInputDataDict.runAmiAlgorithm == 'on' %}selected{% endif %}>On</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Algorithm <span class="classic">Apply physics based model (sandia) or machine learning model (iastate).</span></label>
+				<select id="algorithm" name="algorithm" value="{{allInputDataDict.algorithm}}" required>
+					<option value="sandia1" {% if allInputDataDict.algorithm == 'sandia1' %}selected{% endif %}>sandia1</option>
+					<option value="iastate" {% if allInputDataDict.algorithm == 'iastate' %}selected{% endif %}>iastate</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Meter Data Input File <span class="classic">Upload a .csv file of meter data. Format for input columns: busname, datetime, v_reading, kw_reading, kvar_reading.</span></label>
+				<div>{{ file_upload('AmiDataFile', 'AmiUIDisplay', 'AmiDataFileName') }}</div>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Load Power Factor (pu)
+					<span class="classic">If no reactive power is given in input dataset, this value will be used to help calculate hosting capacity.</span>
+				</label>
+				<input type="text" id="load_pf_est" name="load_pf_est" value="{{allInputDataDict.load_pf_est}}"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">DG Inverter Setting
+					<span class="classic">Calculate hosting capacity under the assumption the DG is either set at a fixed power factor or is following a volt-VAR curve.</span>
+				</label>
+				<select id="dgInverterSetting" name="dgInverterSetting" value="{{allInputDataDict.dgInverterSetting}}" required>
+					<option value="constantPF" {% if allInputDataDict.dgInverterSetting == 'constantPF' %}selected{% endif %}>Constant Power Factor</option>
+					<option value="voltVar" {% if allInputDataDict.dgInverterSetting == 'voltVar' %}selected{% endif %}>volt-VAR</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">DG Power Factor
+					<span class="classic">Assumed output of DG power factor in hosting capacity results.</span>
+				</label>
+				<input type="text" id="derPF" name="derPF" value="{{allInputDataDict.derPF}}" pattern="[+-]?([0-9]*[.])?[0-9]+"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">volt-VAR Setting
+					<span class="classic">Points on the volt-VAR response curve x_1,y_1,x_2,y_2, etc.</span>
+				</label>
+				<input type="text" id="vvPoints" name="vvPoints" value="{{allInputDataDict.vvPoints}}"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Overload Constraint
+					<span class="classic">Sets overload constaint for thermal hosting capacity. Allows transformers to be overloaded by up to 120% (default) of their KVA rating for reverse power flows.</span>
+				</label>
+				<input type="text" id="overloadConstraint" name="overloadConstraint" value="{{allInputDataDict.overloadConstraint}}"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">XF Lookup Table <span class="classic">Upload a .csv file of lookup table of known service transformer kVA readings & impedances. Expected Columns are: 'kVA', 'R_ohms_LV', 'X_ohms_LV'</span></label>
+				<div>{{ file_upload('xfLookupDataFile', 'xfLookupUIDisplay', 'xfLookupDataFileName') }}</div>
+			</div>
+			<br>
+			<label class="tooltip" style="font-size: 14pt;">Customer to Transformer Pairing Data - Thermal Constrained Only<span class="classic"> Customer Transformer Pairing data is required for thermal hosting capacity for the sandia1 algorithm. Can either input customer data to compute or completed mapping</span></label>
+			<br>
+			<br>
+			<div class="shortInput">
+				<label class="tooltip">Customer Transforming Pairing Available
+					<span class="classic">False if no data and will only compute voltage-constrained. Select compute to provide data for model to compute pairing. Select completed to upload completed mapping for model to use.</span>
+				</label>
+				<select id="custTransPairingPresent" name="custTransPairingPresent" value="{{allInputDataDict.custTransPairingPresent}}" onchange="toggleInputs()" required>
+					<option value="off" {% if allInputDataDict.custTransPairingPresent == 'off' %}selected{% endif %}>Not Available</option>
+					<option value="compute" {% if allInputDataDict.custTransPairingPresent == 'compute' %}selected{% endif %}>Compute</option>
+					<option value="completed" {% if allInputDataDict.custTransPairingPresent == 'completed' %}selected{% endif %}>Completed</option>
+				</select>
+			</div>
+			<br>
+			<div class="shortInput">
+				<label class="tooltip">Num of Transformers in System
+					<span class="classic">To calculate transformer customer mapping.</span>
+				</label>
+				<input type="text" id="numOfXfmrs" name="numOfXfmrs" value="{{allInputDataDict.numOfXfmrs}}" pattern="[+-]?([0-9]*[.])?[0-9]+"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Exact Num of Transformers <span class="classic">Exact = True. Approximate or None = False.</span></label>
+				<select id="exactXfmrs" name="exactXfmrs" value="{{allInputDataDict.exactXfmrs}}" required>
+					<option value="False" {% if allInputDataDict.exactXfmrs == 'False' %}selected{% endif %}>False</option>
+					<option value="True" {% if allInputDataDict.exactXfmrs == 'True' %}selected{% endif %}>True</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Bus Coords<span class="classic"> Expected Columns are: 'busname', 'X', 'Y'</span></label>
+				<div>{{ file_upload('busCoordsDataFile', 'busCoordsUIDisplay', 'busCoordsDataFileName') }}</div>
+			</div>
+			<br>
+			<div class="shortInput">
+				<label class="tooltip">Completed Transformer Labeling Info<span class="classic"> If Transformer Customer mapping is already completed, can input the completed inputs here. Expected Columns are: 'busname', 'Transformer Index', 'X', 'Y'</span></label>
+				<div>{{ file_upload('completed_xfmrCustDataFile', 'completed_xfmrCustUIDisplay', 'completed_xfmrCustDataFileName') }}</div>
+			</div>
+			<script>
+				function toggleInputs() {
+					const status = document.getElementById('custTransPairingPresent').value;
+					const numOfXfmrs = document.getElementById('numOfXfmrs');
+					const exactXfmrs = document.getElementById('exactXfmrs');
+					// For file uploads, we target the inputs inside the containers
+					// Line 1 of the macro is the actual file input. That is the first argument in the macro parameters, so that's what we have here.
+					const busCoordsFile = document.querySelector('#busCoordsDataFile');
+					const completedFile = document.querySelector('#completed_xfmrCustDataFile');
+					if (status === 'off') {
+						numOfXfmrs.disabled = true;
+						exactXfmrs.disabled = true;
+						if(busCoordsFile) busCoordsFile.disabled = true;
+						if(completedFile) completedFile.disabled = true;
+					} 
+					else if (status === 'compute') {
+						numOfXfmrs.disabled = false;
+						exactXfmrs.disabled = false;
+						if(busCoordsFile) busCoordsFile.disabled = false;
+						if(completedFile) completedFile.disabled = true;
+					} 
+					else if (status === 'completed') {
+						numOfXfmrs.disabled = true;
+						exactXfmrs.disabled = true;
+						if(busCoordsFile) busCoordsFile.disabled = true;
+						if(completedFile) completedFile.disabled = false;
+					}
+				}
+				// Run once on page load to set initial state based on server-side values
+				window.onload = toggleInputs;
+			</script>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Model-Based Hosting Capacity</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label>Apply Model-Based Hosting Capacity</label>
+				<select id="runModelBasedAlgorithm" name="runModelBasedAlgorithm" value="{{allInputDataDict.runModelBasedAlgorithm}}" required>
+					<option value="off" {% if allInputDataDict.runModelBasedAlgorithm == 'off' %}selected{% endif %}>Off</option>
+					<option value="on" {% if allInputDataDict.runModelBasedAlgorithm == 'on' %}selected{% endif %}>On</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Maximum kW Tested
+					<span class="classic">The maximum threshhold of KW added to determine max hosting capacity</span>
+				</label>
+				<input type="text" id="modelBasedHCMaxTestKw" name="modelBasedHCMaxTestKw" value="{{allInputDataDict.modelBasedHCMaxTestKw}}" pattern="^[0-9]*$"/>
+			</div>
+			<div class="wideInput">
+				<p class="inputSectionHeader">Downline Load Hosting Capacity</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Apply Downline Hosting Capacity Algorithm
+					<span class="classic">Calculate approximately how much load is downline of every bus on the system which gives a rough estimate of hosting capacity. Useful as a sanity check for other methods.</span>
+				</label>
+				<select id="runDownlineAlgorithm" name="runDownlineAlgorithm" value="{{allInputDataDict.runDownlineAlgorithm}}" required>
+					<option value="off" {% if allInputDataDict.runDownlineAlgorithm == 'off' %}selected{% endif %}>Off</option>
+					<option value="on" {% if allInputDataDict.runDownlineAlgorithm == 'on' %}selected{% endif %}>On</option>
+				</select>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<style>td, th {padding:7 0 5 20;text-align: left;font-size:0.8em; border: 1px solid #cccccc;} </style>
+	<div id="output">
+		<!--
+		We want the map to be displayed at the top, but it'll only display if model-based is there since its created there
+		-->
+		{% if allOutputDataDict['reactivePowerWarningFlag'] == True %}
+			<p class="reportTitle" style="page-break-before:always;"><b>Model-Free Hosting Capacity Analysis Warning</b></p>
+				<div id="reactivePowerWarningInformation" class="tightContent">
+						<p style="font-size: 20px; padding: 8px;"><span style="color: red; font-weight: bold;">WARNING: </span> {{ allOutputDataDict['reactivePowerWarningInfo'] }} </p>
+				</div>
+			</p>
+		{% endif %}
+		{% if allOutputDataDict['mapWarningFlag'] == True %}
+			<p class="reportTitle" style="page-break-before:always;"><b>Map Display Warning</b></p>
+				<div id="mapWarningInformation" class="tightContent">
+						<p style="font-size: 20px; padding: 8px;"><span style="color: red; font-weight: bold;">WARNING: </span> {{ allOutputDataDict['mapWarningInfo'] }} </p>
+				</div>
+			</p>
+		{% endif %}
+		{% if allOutputDataDict['xfmrWarningFlag'] == True %}
+			<p class="reportTitle" style="page-break-before: always"><b>Num of Transformers Note</b></p>
+				<div id="xfmrWarningInformation" class="tightContent">
+					<p style="font-size: 20px; padding: 8x;"><span style="color:cadetblue; font-weight: bold;"> NOTE: </span> {{ allOutputDataDict['xfmrWarningInfo'] }}</p>
+				</div>
+			</p>
+		{% endif %}
+		{% if allOutputDataDict['custTransPairingWarningFlag'] == True %}
+			<p class="reportTitle" style="page-break-before: always"><b>Customer to Transformer Pairing Note</b></p>
+				<div id="custTransPairingWarningInfo" class="tightContent">
+					<p style="font-size: 20px; padding: 8x;"><span style="color:cadetblue; font-weight: bold;"> NOTE: </span> {{ allOutputDataDict['custTransPairingWarningInfo'] }}</p>
+				</div>
+			</p>
+		{% endif %}
+				{% if allOutputDataDict['completedCustTransPairingWarningFlag'] == True %}
+			<p class="reportTitle" style="page-break-before:always;"><b>Map Display Warning</b></p>
+				<div id="mapWarningInformation" class="tightContent">
+						<p style="font-size: 20px; padding: 8px;"><span style="color: red; font-weight: bold;">WARNING: </span> {{ allOutputDataDict['completedCustTransPairingWarningInfo'] }} </p>
+				</div>
+			</p>
+		{% endif %}
+		{% if allOutputDataDict['hideMap'] == False %}
+			<p class="reportTitle" style="page-break-before:always">Hosting Capacity Map</p>
+			<div id="hostingCapacityMap" class="tightContent"></div>
+			<script>
+				var mapContent = allOutputData["hostingCapacityMap"]
+				var iframe = document.createElement('iframe');
+				iframe.style = 'width:1000px; height:800px; border-radius:8px;'
+				document.getElementById('hostingCapacityMap').appendChild(iframe);
+				iframe.contentWindow.document.open();
+				iframe.contentWindow.document.write(mapContent);
+				iframe.contentWindow.document.close();
+			</script>
+		{% endif %}
+    {% if allInputDataDict['runAmiAlgorithm'] == 'on' %}
+			<p class="reportTitle">AMI-Based Hosting Capacity Runtime ( H:M:S:MS ) </p>
+			<div id="AMI_runtime" class="tightContent">
+				<p style="padding: 4px; align-items: center;"> {{ allOutputDataDict['AMI_runtime']}} </p>  
+			</div>
+			<p class="reportTitle">AMI-Based Hosting Capacity Distribution</p>
+			<div id="histogramFigure" class="tightContent">
+				<div id="histogramFigure" style="width:1000px"></div>
+				<script type="text/javascript">
+					plotGraph("histogramFigure", allOutputData["histogramFigure"])
+				</script>
+			</div>
+			<p class="reportTitle">AMI-Based Hosting Capacity By Bus</p>
+			<div id="barChartFigure" class="tightContent">
+				<div id="barChartFigure" style="width:1000px"></div>
+				<script type="text/javascript">
+					plotGraph("barChartFigure", allOutputData["barChartFigure"])
+				</script>
+			</div>
+			<p class="reportTitle">AMI-Based Full Hosting Capacity Data Table</p>
+			<div id="AMIhostingCapacityTable" class="tightContent" style="height:300px; overflow-y: scroll;">
+				<table style='margin:5px;width:990px;'>
+					<tr>
+					{% for header in allOutputDataDict["AMI_tableHeadings"] %}
+						<th>{{ header }}</th>
+						{% endfor %}
+					</tr>
+					{% for values in allOutputDataDict["AMI_tableValues"] %}
+					<tr>
+						{% for val in values %}
+						<td>{{ val }}</td>
+						{% endfor %}
+					</tr>
+					{% endfor %}
+				</table> 
+			</div>
+    {% endif %}
+		{% if allInputDataDict['runModelBasedAlgorithm'] == 'on' %}
+			<p class="reportTitle">Model-Based Hosting Capacity Runtime ( H:M:S:MS )</p>
+			<div id="modelBasedRunTime" class="tightContent">
+				<p style="padding: 4px; align-items: center;"> {{ allOutputDataDict['modelBasedRuntime'] }} </p>
+			</div>
+			<p class="reportTitle">Model-Based Hosting Capacity By Bus</p>
+			<div id="modelBasedHCGraph" class="tightContent">
+				<div id="modelBasedHCGraph" style="width:1000px"></div>
+				<script type="text/javascript">
+					plotGraph("modelBasedHCGraph", allOutputData["modelBasedGraphData"])
+				</script>
+			</div>
+			<p class="reportTitle">Model-Based Hosting Capacity Full Data Table</p>
+			<div id="modelBasedHostingCapacityTable" class="tightContent" style="height:300px; overflow-y: scroll;">
+				<table style="width:100%;">
+					<tr>
+							{% for header in allOutputDataDict["modelBasedHCTableHeadings"] %}
+							<th>{{ header }}</th>
+							{% endfor %}
+					</tr>
+					{% for values in allOutputDataDict["modelBasedHCTableValues"] %}
+					<tr>
+							{% for val in values %}
+							<td>{{ val }}</td>
+							{% endfor %}
+					</tr>
+					{% endfor %}
+			</table>
+			</div>
+		{% endif %}
+		{% if allInputDataDict['runDownlineAlgorithm'] == 'on' %}
+		<p class="reportTitle">Downline Load Hosting Capacity Runtime ( H:M:S:MS )</p>
+			<div id="modelBasedRunTime" class="tightContent">
+				<p style="padding: 4px; align-items: center;";> {{ allOutputDataDict['downline_runtime'] }} </p>
+			</div>
+		<p class="reportTitle">Downline Load Hosting Capacity Full Data Table</p>
+		<p style="font-size: 11pt; width: 980px; margin: 0px auto 0px auto;"> Load = generation - storage - pvsystem </p>
+			<div id="downlineHostingCapacityTable" class="tightContent" style="height:300px; overflow-y: scroll;">
+				<table style="width:100%;">
+					<tr>
+							{% for header in allOutputDataDict["downline_tableHeadings"] %}
+							<th>{{ header }}</th>
+							{% endfor %}
+					</tr>
+					{% for values in allOutputDataDict["downline_tableValues"] %}
+					<tr>
+							{% for val in values %}
+							<td>{{ val }}</td>
+							{% endfor %}
+					</tr>
+					{% endfor %}
+			</table>
+			</div>
+			{% endif %}
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

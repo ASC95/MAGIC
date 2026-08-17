@@ -1,0 +1,30 @@
+# =============================================================================
+# Power Flow Metrics Configuration File (config/KPI.yaml)
+# -----------------------------------------------------------------------------
+# Purpose: select which metrics to track here
+# Notes:
+#  - variables and variable values should generally be lowercase (e.g., 'false' or 'null')
+#  - anything in all caps is meant to be a backup parameter which should not be needed if other inputs are defined properly (i.e., these most likely will not need to be updated by most users)
+#  - use &<reusable_params> to create reusable blocks and *<reusable_params> to reference that block elsewhere
+# =============================================================================
+oscillation_filter: #parameters to apply when calculating oscillation KPI (these will be used for both the oscillation and worst case oscillation KPIs), note that a previous version of MAGIC used a=0.85, b=0.85, and c=1e5 - these parameters may need to be tuned for this current verison of PyMAGIC
+  a: 0.75 # constant for the first low pass filter
+  b: 0.75 # constant for the second low pass filter
+  c: 1e4 # high pass filter constant to scale the yk value (gain)
+
+KPI_list:
+  oscillation: # always active and always logged (published by OpenDSS)
+    selected_nodes: null # if null, will collect info for all nodes, otherwise will only collect info for the selected nodes
+      # - '645.2'
+      # - '650.1'
+  worst_case_oscillation: # can be turned on and off
+    KPI_active: true
+    num_worst_nodes: 10 # number of nodes to consider for worst case oscillation (only the worst case, the worst 5 cases, etc.)
+  imbalance: # always active and always logged (published by OpenDSS)
+    selected_buses: null # if null, will collect info for all nodes, otherwise will only collect info for the selected nodes
+      # - '650'
+      # - '675'
+      # - '632'
+  worst_case_imbalance: # can be turned on and off
+    KPI_active: true
+    num_worst_buses: 20 # number of nodes to consider for worst case imbalance (only the worst case, the worst 5 cases, etc.)

@@ -1,0 +1,305 @@
+<head>
+	{{ omfHeaders }}
+	<style>
+		#Metric {
+			font-weight:bold;
+			width:175px;
+		}
+		#SPP {
+			font-weight:bold;
+		}
+	</style>
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+	<script src="{{pathPrefix}}/static/highcharts-more.src.js"></script>
+	<script type="text/javascript" src="{{pathPrefix}}/static/plotly-1.50.1.min.js"></script>
+	
+	<!-- Helper Functions -->
+	<script type="text/javascript">
+		$(window).on('pageshow',function(){
+			Plotly.newPlot( 'plotSax', JSON.parse(allOutputData['plotSax']) );
+			Plotly.newPlot( 'plotLof', JSON.parse(allOutputData['plotLof']) );
+			Plotly.newPlot( 'plotIso', JSON.parse(allOutputData['plotIso']) );
+		});
+	</script>
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-anomalyDetector" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{allInputDataDict.modelType}}" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required">
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>			
+			<div class="wideInput">
+				<p class="inputSectionHeader">Anomaly Detection Parameters</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Data (.csv file)<span class="classic">Please see the documentation at the green 'Help?' link above for the required format and an example file.</span></label>
+				<input id="inputFile" type="file" style="display:none" onchange="handle_files(this.files,'file','fileName')">
+				<input id="file" name="file" value="{{allInputDataDict.file}}" type="hidden">
+				<div>
+					<label for="inputFile" class="fileButton">Choose File</label>
+					<input id="fileName" name="fileName" value="{{allInputDataDict.fileName}}" value='' readonly class="uploadFileName">
+				</div>
+			</div>
+			<div class="shortInput">
+				<label>Is the format of this file forecastLoad compliant?</label>
+				<input type="checkbox"  id="demandTempBool" name="demandTempBool" {% if allInputDataDict.demandTempBool %}checked{% endif %}/>
+			</div>
+			<div class="shortInput">
+				<label>Prophet - Dependent Variable Name</label>
+				<input type="text"  id="yLabel" name="yLabel" value="{{allInputDataDict.yLabel}}" />
+			</div>
+			<div class="shortInput">
+				<label>Prophet - Start Date (YYYY-MM-DD)</label>
+				<input type="text"  id="startDate" name="startDate" value="{{allInputDataDict.startDate}}" pattern="^\d\d\d\d-\d\d-\d\d$"/>
+			</div>
+			<div class="shortInput">
+				<label>Elliptic - Gaussian Level (&lt; 1)</label>
+				<input type="number"  id="norm_confidence" name="norm_confidence" value="{{allInputDataDict.norm_confidence}}" min="0.01" max="1" step="any"/>
+			</div>
+			<div class="shortInput">
+				<label>T-Test - Confidenc Level (&lt; 1)</label>
+				<input type="number"  id="confidence" name="confidence" value="{{allInputDataDict.confidence}}" min="0.5" max="1" step="any"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Local Outlier Factor - Contamination Level<span class="classic">The percent of data expected to be anomalous. value must be between 0 and 0.5; if the value is set to 0 the contamination level is determined automatically.</span></label>
+				<input type="number"  id="contaminationLof" name="contaminationLof" value="{{allInputDataDict.contaminationLof}}" min="0" max="0.5" step="0.01"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Local Outlier Factor - Neighbors<span class="classic">The number of neighbors to use to determine whether a point is an outlier or not; If the number of neighbors provided is larger than the number of samples provided, all samples will be used.</span></label>
+				<input type="number"  id="neighbors" name="neighbors" value="{{allInputDataDict.neighbors}}" min="0" step="1"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Isolation Forest - Contamination Level<span class="classic">The percent of data expected to be anomalous. value must be between 0 and 0.5; if the value is set to 0 the contamination level is determined automatically.</span></label>
+				<input type="number"  id="contaminationIso" name="contaminationIso" value="{{allInputDataDict.contaminationIso}}" min="0" max="0.5" step="0.01"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Isolation Forest - Number of Estimators<span class="classic">The number of trees to generate within the ensemble to determine whether a point is an outlier or not.</span></label>
+				<input type="number"  id="estimators" name="estimators" value="{{allInputDataDict.estimators}}" min="0" step="1"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Isolation Forest - Sample Percentage<span class="classic">The percentage of datapoints sampled to generate each tree in the ensemble.</span></label>
+				<input type="number"  id="samples" name="samples" value="{{allInputDataDict.samples}}" min="0" max="1" step="any"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">SAX - Normailzation Window Size<span class="classic">The number of datapoints to consider for normalizing data shapes.</span></label>
+				<input type="number"  id="windowSize" name="windowSize" value="{{allInputDataDict.windowSize}}" min="1" step="1"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">SAX - Alphabet Size<span class="classic">The number of symbols to use to approximate the signal, the larger the number the less the algorithm with generalize (must be between 3 and 20)</span></label>
+				<input type="number"  id="alphabetSize" name="alphabetSize" value="{{allInputDataDict.alphabetSize}}" min="3" max="20" step="1"/>
+			</div>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<p class="reportTitle" style="page-break-before:always">Prophet (Monovariate)</p>
+	<div id="prophetPlot" class="tightContent">
+		<div id="prophetChart"></div>
+		<script>
+			var prophetOutliers = [];
+			for (var i = 0; i < allOutputData.y.length; i++) { //casting these to Highcharts-friendly formats
+				if(allOutputData.prophet_outlier[i] == 1) {
+					prophetOutliers.push(allOutputData.y[i]);
+				}
+				else{
+					prophetOutliers.push(null);
+				}
+			}
+			new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"shadow":false,
+							"pointStart": Date.parse(allOutputData.startDate),
+							"pointInterval": 1000*60*60,
+							"turboThreshold": 50000,
+						},
+						"scatter":{
+							"marker":{
+								"radius": 3,
+								"symbol": "circle",
+							}
+						},
+						"line":{"marker":{"enabled":false}}
+					},
+					"xAxis":{
+						"maxZoom":108000000,
+						"tickColor":"gray",
+						"dateTimeLabelFormats":{
+							"month": '%b %e'
+						},
+						"type":"datetime",
+						"lineColor":"gray"
+					},
+					"yAxis":{
+						"title":{"enabled":false},
+					},
+					"title":{"text":undefined},
+					"series":[
+						{"name":"Input Data",
+							"color":"green",
+							"data":allOutputData.y,
+							"type": "line"
+						},
+						{"name": "Predicted interval (lower bound)",
+							"color": "rgba(89, 189, 244, 0.4)",
+							"data": allOutputData.yhat_lower,
+							"type": "line",
+							"marker": {"enabled": false},
+						},
+						{"name": "Predicted interval (upper bound)",
+							"color": "rgba(89, 189, 244, 0.4)",
+							"data": allOutputData.yhat_upper,
+							"type": "line",
+							"marker": {"enabled": false},
+						},
+						{"name":"Outliers",
+							"color":"red",
+							"data":prophetOutliers,
+							"type": "scatter",
+						},
+					],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"prophetChart","marginRight":20, "height":500,"width":1000},
+					"tooltip":false,
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+		</script>
+	</div>
+	<p class="reportTitle" style="page-break-before:always">Elliptic Envelope</p>
+	<div id="ellipticPlot" class="tightContent">
+		{% if elliptic_outlier is not defined %}Warning: input data is not Gaussian, so elliptic envelope method is invalid.{% endif %}
+		<div id="ellipticChart"></div>
+		<script>
+			var ellipticOutliers = [];
+			for (var i = 0; i < allOutputData.y.length; i++) { //casting these to Highcharts-friendly formats
+				if(allOutputData.elliptic_outlier[i] == 1) {
+					ellipticOutliers.push(allOutputData.y[i]);
+				}
+				else{
+					ellipticOutliers.push(null);
+				}
+			}
+			new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"shadow":false,
+							"pointStart": Date.parse(allOutputData.startDate),
+							"pointInterval": 1000*60*60,
+							"turboThreshold": 50000,
+						},
+						"scatter":{
+							"marker":{
+								"radius": 3,
+								"symbol": "circle",
+							}
+						},
+						"line":{"marker":{"enabled":false}}
+					},
+					"xAxis":{
+						"maxZoom":108000000,
+						"tickColor":"gray",
+						"dateTimeLabelFormats":{
+							"month": '%b %e'
+						},
+						"type":"datetime",
+						"lineColor":"gray"
+					},
+					"yAxis":{
+						"title":{"enabled":false},// "title":{"text":"Unit","style":{"color":"gray"}},
+					},
+					"title":{"text":undefined},
+					"series":[
+						{"name":"Input Data",
+							"color":"green",
+							"data":allOutputData.y,
+							"type": "line"
+						},
+						{"name":"Outliers",
+							"color":"red",
+							"data":ellipticOutliers,
+							"type": "scatter",
+						},
+					],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"ellipticChart","marginRight":20, "height":500,"width":1000},
+					"tooltip":false,
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+		</script>
+	</div>
+
+	<p class="reportTitle" style="page-break-before:always">Peak Forecast T-Test Method</p>
+	<div id="katPlot" class="tightContent">
+		{% if pk_bool is not defined %}Peak forecast t-test method was not run, as the checkbox indicating that the input data conforms to the forecastLoad data formatting requirements was not checked. {% endif %}
+		<div id="katChart"></div>
+		<script>
+			for (var i = 0; i < allOutputData.katrina_outlier.length; i++) { //casting these to Highcharts-friendly formats
+				v = new Date(allOutputData.katrina_outlier[i][0]);
+				allOutputData.katrina_outlier[i][0] = Date.UTC(v.getFullYear(), v.getMonth(), v.getDate(), v.getHours() - 1)
+				allOutputData.katrina_outlier[i][1] = parseFloat(allOutputData.katrina_outlier[i][1]);
+			}
+			new Highcharts.Chart({"credits":{"enabled":false},
+					"plotOptions":{
+						"series":{
+							"animation":false,
+							"shadow":false},
+						"line":{"marker":{"enabled":false}}},
+					"xAxis":{
+						"maxZoom":108000000,
+						"tickColor":"gray",
+						"dateTimeLabelFormats":{
+							"month": '%b %e'
+						},
+						"type":"datetime",
+						"lineColor":"gray"
+					},
+					"yAxis":{
+						"title":{"enabled":false},// "title":{"text":"Unit","style":{"color":"gray"}},
+					},
+					"title":{"text":undefined},
+					"series":[
+						{"name":"Actual Data (kW)",
+							"marker":{"enabled":false},
+							"color":"red",
+							"data":allOutputData.y,
+							"type": "line",
+							"pointStart": Date.parse(allOutputData.startDate),
+							"pointInterval": 1000*60*60},
+						{"name":"Anomalous Peaks (kW)",
+							"color":"blue",
+							"data":allOutputData.katrina_outlier,
+							"type": "scatter"}
+					],
+					"chart":{"marginBottom":35,"zoomType":"x","renderTo":"katChart","type":"line","marginRight":20, "height":500,"width":1000},
+					"tooltip":false,
+					"legend":{"verticalAlign":"top","align":"top","borderWidth":0,"x":50,"y":-10,"layout":"horizontal"}})
+		</script>
+	</div>
+	<p class="reportTitle" style="page-break-before:always">Local Outlier Factor</p>
+	<div id="plotLof" class="tightContent"></div>
+	<p class="reportTitle" style="page-break-before:always">Isolation Forest</p>
+	<div id="plotIso" class="tightContent"></div>
+	<p class="reportTitle" style="page-break-before:always">SAX-Sequitur</p>
+	<div id="plotSax" class="tightContent"></div>
+	{{ rawOutputFiles }}
+	{% endif %}
+</body>

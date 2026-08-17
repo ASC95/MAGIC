@@ -1,0 +1,91 @@
+<head>
+	<title>Open Modeling Framework</title>
+	<meta charset='utf-8'>
+	<meta name='description' content='The Open Modeling Framework (OMF), a web application for simulating power systems behavior with an emphasis on cost-benefit analysis of emerging technologies: distributed generation, storage, networked controls, etc.'>
+	<style type='text/css'>
+		div#container {clear:both; position:relative; margin:0 auto; padding:0; width:1024px; height:500px}
+		div#pusherRobot {float:left; height:50%; margin-bottom:-250px;}
+		div.subContainer {margin:0; display:inline-block; width:50%;height:100%; text-align: center}
+		div#advertisingFrame {float:left; border-radius: 25px; color:white; text-align:center; line-height: 500px; background-image:url('/static/gridAbstract.png'); background-size:500px;}
+		div#login {float:right}
+		p#loginTitle {font-size:24pt; width:100%; text-align:center; padding-top:85px;}
+		form#loginForm {font-size:16pt}
+		input, button, label {margin-bottom:10px; font-size:16pt; padding:5px}
+		input[type='text'], input[type='password'] {width:300px}
+		label#remember {margin-left:75px; color:gray}
+		div#subLinks {display:inline-block;position:absolute;bottom:-60px;left:-30px;line-height:50px}
+		a.menuEntry {display:inline-block; font-size:18pt; color:gray; margin:0px; padding:7px 10px 7px 10px; text-decoration:none;}
+		a.menuEntry:hover {color:black;}
+		a.forgotPWD {display:inline-block; font-size:14pt; margin-top:-10px; padding:7px 10px 7px 10px; text-decoration:none;}
+		a.forgotPWD:hover {color:black;}
+		a.quickNew {display:inline-block; font-size:14pt;margin-left:-5px; margin-top:-10px; padding:7px 10px 7px 10px; text-decoration:none;}
+		a.quickNew:hover {color:black;}
+		a {text-decoration:none;}
+	</style>
+	<link rel='shortcut icon' href='/static/favicon.ico'>
+	<script type='text/javascript' src='/static/omf.js'></script>
+	<script type='text/javascript'>
+		function validateEmail(email) {
+			var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+			return re.test(email);
+		}
+
+		function forgotPassword() {
+			var email = prompt('Enter your email address and a password reset link will be sent to you.')
+			if (email == null) {
+				return
+			}
+			else if (validateEmail(email)) {
+				post_to_url('/forgotPassword/' + email)
+			} else {
+				alert("Sorry, but that is not a valid email address.")
+			}
+		}
+
+		function newAccount() {
+			var email = prompt('Enter an email address to identify your account.\n\nWe will log you in and email you a temporary password.\n\nBy creating an account you confirm that you have read and accept the privacy policy [1] and terms of use [2].\n\n[1] https://github.com/dpinney/omf/blob/master/Privacy%20Policy.txt\n\n[2] https://github.com/dpinney/omf/blob/master/Terms%20of%20Use.txt')
+			if (email == null) {
+				return
+			}
+			else if (validateEmail(email)) {
+				var form = document.createElement('form');
+				form.method = 'POST';
+				form.action = '/fastNewUser/' + encodeURIComponent(email) + window.location.search;
+				var csrfInput = document.createElement('input');
+				csrfInput.type = 'hidden';
+				csrfInput.name = '_csrf_token';
+				csrfInput.value = '{{ csrf_token() }}';
+				form.appendChild(csrfInput);
+				document.body.appendChild(form);
+				form.submit();
+			} else {
+				alert('Sorry, but that is not a valid email address.')
+			}
+		}
+	</script>
+</head>
+<body>
+	<div id='pusherRobot'></div>
+	<div id='container'>
+		<div class='subContainer' id='advertisingFrame'>
+			<div id='subLinks'>
+				<a class='menuEntry' id='docsEntry' href='/docs/'>✑ Documentation</a>
+				<a class='menuEntry' id='discussionEntry' href='https://groups.google.com/forum/#!forum/open-modeling-framework-forum'>✉ Discussion</a>
+				<a class='menuEntry' id='developerEntry' href='https://github.com/dpinney/omf'>∯ Development</a>
+			</div>
+		</div>
+		<div class='subContainer' id='login'>
+			<p id='loginTitle'>Open Modeling Framework</p>
+			<form id='loginForm' name='loginForm' method='POST' action='login'>
+				<input type='hidden' name='_csrf_token' value='{{ csrf_token() }}' />
+				<input type='hidden' id='next' name='next' value='{{ next }}' />
+				<input type='text' placeholder='Email' name='username' id='username' required autofocus><br/>
+				<input type='password' placeholder='Password' name='password' id='password'><br/>
+				<button type='submit'>Login</button>
+				<label id='remember'>Remember Me <input name="remember" type='checkbox' checked></label>
+			</form>
+			<a class='forgotPWD' href="#" id="forgotpwd" onclick="forgotPassword()">Forgot Password?</a>
+			<a class='quickNew' href="#" id="requestAccess" onclick="newAccount()">Create Account?</a>
+		</div>
+	</div>
+</body>

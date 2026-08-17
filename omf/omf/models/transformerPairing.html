@@ -1,0 +1,132 @@
+<head>
+	{{ omfHeaders }}
+	<!-- Library Imports -->
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+
+	<!-- 
+			file_upload('fileInputID', 'userInputVoltage', 'voltageDataFileName')
+			<input> line 1: input for the actual file.
+			the name of the file the user is using/inputting in. We wanna save this for display. Originally it's set as the default.
+			This is hidden. This is the name of the file we want always = .csv name <- default naming convention 
+		-->
+	{% macro file_upload(fileInputID, userFileDisplayNameID, dataFileNameID) -%}
+    <input type="file" id="{{fileInputID}}" name="{{ allInputDataDict[dataFileNameID] }}" accept=".csv" class="fileButton" onchange="updateFileNameDisplay('{{fileInputID}}', '{{userFileDisplayNameID}}', '{{dataFileNameID}}')" style="display:none"><br>
+    <label for="{{fileInputID}}" class="fileButton">Choose File</label>
+    <input id="{{userFileDisplayNameID}}" name="{{userFileDisplayNameID}}" value="{{ allInputDataDict[userFileDisplayNameID] }}" readonly class="uploadFileName">
+    <input id="{{dataFileNameID}}" name= {{dataFileNameID}} type="hidden" value="{{ allInputDataDict[dataFileNameID] }}">
+	{% endmacro %}
+
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post" enctype="multipart/form-data">
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-transformerPairing" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required" readonly>
+			</div>
+			<div class="shortInput ">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			{% if modelStatus == 'finished' %}
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value={{allInputDataDict.runTime}} readonly/>
+			</div>
+			{% endif %}
+			<!-- Model Specific Inputs -->
+			<br>
+			<div class="shortInput">
+				<label class="tooltip">Voltage AMI - Data Input File <span class="classic">File type: .csv</span></label>
+				<div>{{ file_upload('voltageDataFile', 'userInputVoltageDisplayName', 'voltageDataFileName' )}}</div>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Real Power - AMI Data Input File <span class="classic">File type: .csv</span></label>
+				<div>{{ file_upload('realPowerDataFile', 'userInputRealDisplayName', 'realPowerDataFileName') }}</div>
+			</div>
+			<div class="shortInput"> 
+				<label class="tooltip">Customer ID Data - AMI Data Input File <span class="classic">File type: .csv</span></label>
+				<div>{{ file_upload('customerIDDataFile', 'userInputCustIDDisplayName', 'customerIDDataFileName') }}</div>
+			</div>
+			<br>
+			<div class="shortInput">
+				<label class="tooltip">Choose Algorithm: Customer Distance Based or Reactive Power Based</label>
+				<select id="algorithm" name="algorithm" value="{{allInputDataDict.algorithm}}" required>
+					<option value="reactivePower" {% if allInputDataDict.algorithm == 'reactivePower' %}selected{% endif %}>Reactive Power</option>
+					<option value="customerLatLong" {% if allInputDataDict.algorithm == 'customerLatLong' %}selected{% endif %}>Customer LatLong</option>
+				</select>
+			</div>
+			<br>
+			<div class="shortInput" id="customerLatLong"> 
+				<label class="tooltip">Customer Latitude & Longitutde - AMI Data Input File <span class="classic">File type: .csv</span></label>
+				<div>{{ file_upload('customerLatLongDataFile', 'userInputCustLatLongDisplayName', 'customerLatLongDataFileName') }}</div>
+			</div>
+			<div class="shortInput" id="reactivePower"> 
+				<label class="tooltip">Reactive Power - AMI Data Input File <span class="classic">File type: .csv</span></label>
+				<div>{{ file_upload('reactivePowerDataFile', 'userInputReactiveDisplayName', 'reactivePowerDataFileName') }}</div>
+			</div>	
+			<hr>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	<!--<div id="copyrightNotice" style="width:1000px; margin:-25px auto 10px auto; padding-left:5px; color:gray">TransformerPairing &copy; was developed by the <a href="https://www.sandia.gov/">National Renewable Energy Lab</a></div>-->
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<style>td, th {padding:7 0 5 20;text-align: left;font-size:0.8em; border: 1px solid #cccccc;} </style>
+	<div id="output">
+		<p class="reportTitle">Meter to Transformer Pairing Algorithm Results</p>
+		<div id="correlationCoefficient" class="tightContent">
+			<img id="correlationCoefficientPNG" style="width:1000px;" src="data:image/png;base64,{{allOutputDataDict.correlationCoefficientPic}}" style="border-radius:8px" />
+		</div>
+		<p class="reportTitle">Customers Whose Transformer Labels/Groupings Have Changed</p>
+		<div id="customersChangedTable" class="tightContent">
+			<table style='margin:5px;width:990px'>
+				<caption></caption>
+				<tr>
+				{% for header in allOutputDataDict["customerTableHeadings"] %}
+					<th>{{ header }}</th>
+					{% endfor %}
+				</tr>
+				{% for values in allOutputDataDict["customerTableValues"] %}
+				<tr>
+					{% for val in values %}
+					<td>{{ val }}</td>
+					{% endfor %}
+				</tr>
+				{% endfor %}
+			</table> 
+		</div>
+		{% if allOutputDataDict['useTrueLabels'] == True %}
+			<p class="reportTitle">Improvement Stats</p>
+			<div id="improvementTable" class="tightContent">
+				<table style='margin:5px;width:990px'>
+					<caption></caption>
+					<tr>
+					{% for header in allOutputDataDict["improvementTableHeadings"] %}
+						<th>{{ header }}</th>
+						{% endfor %}
+					</tr>
+					{% for values in allOutputDataDict["improvementTableValues"] %}
+					<tr>
+						{% for val in values %}
+						<td>{{ val }}</td>
+						{% endfor %}
+					</tr>
+					{% endfor %}
+				</table> 
+			</div>
+		{% endif %}
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

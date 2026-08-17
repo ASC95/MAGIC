@@ -1,0 +1,7 @@
+name,hacked_name,device,hacked_device,hacked_controller,hack_start,hack_end,attack_type,attack_parameters
+regulator_3,hacked_regulator_1, regulator_device,hacked_regulator_device,hacked_regulator_controller,2,5,regulator_disconnect
+cap_1,hacked_cap_1,capacitor_device,hacked_capacitor_device,hacked_capacitor_controller,2,5,CAP_Curtailment,CurtailmentFactor:0.5
+
+
+
+
