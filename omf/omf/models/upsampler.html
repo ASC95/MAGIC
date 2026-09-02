@@ -1,0 +1,179 @@
+<head>
+	{{ omfHeaders }}
+	<script src="{{pathPrefix}}/static/highcharts4.src.js"></script>
+	{% macro file_upload(fileInputID, userFileDisplayNameID, dataFileNameID) -%}
+    <input type="file" id="{{fileInputID}}" name="{{ allInputDataDict[dataFileNameID] }}" accept=".csv" class="fileButton" onchange="updateFileNameDisplay('{{fileInputID}}', '{{userFileDisplayNameID}}', '{{dataFileNameID}}')" style="display:none"><br>
+    <label for="{{fileInputID}}" class="fileButton">Choose File</label>
+    <input id="{{userFileDisplayNameID}}" name="{{userFileDisplayNameID}}" value="{{ allInputDataDict[userFileDisplayNameID] }}" readonly class="uploadFileName">
+    <input id="{{dataFileNameID}}" name= {{dataFileNameID}} type="hidden" value="{{ allInputDataDict[dataFileNameID] }}">
+	{% endmacro %}
+</head>
+<body>
+	{{ omfModelTitle }}
+	<p class="reportTitle">Model Input</p>
+	<div id="input" class="content">
+		<form name="inputForm" action="/runModel/" onsubmit="event.preventDefault(); return isFormValid();" method="post" enctype="multipart/form-data">
+			<!-- Required Inputs -->
+			<div class="shortInput">
+				<label>Model Type <a href="/docs/Models-~-upsampler" target="_blank">Help?</a></label>
+				<input type="text" id="modelType" name="modelType" value="{{modelName}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Model Name</label>
+				<input type="text" id="modelName" name="modelName" value="{{allInputDataDict.modelName}}" pattern="^[\w\s\d\.-]+$" required="required" readonly>
+			</div>
+			<div class="shortInput">
+				<label>User</label>
+				<input type="text" id="user" name="user" value="{{allInputDataDict.user}}" readonly/>
+			</div>
+			<div class="shortInput">
+				<label>Created</label>
+				<input type="text" id="created" name="created" value="{{allInputDataDict.created}}" readonly/>
+			</div>
+			{% if modelStatus == 'finished' %}
+			<div class="shortInput">
+				<label>Run Time</label>
+				<input type="text" id="runTime" name="runTime" value="{{allInputDataDict.runTime}}" readonly/>
+			</div>
+			{% endif %}
+			<!-- Model Specific Inputs -->
+			<div class="wideInput">
+				<p class="inputSectionHeader">Load Shape Upsampling</p>
+			</div>
+			<hr>
+			<div class="shortInput">
+				<label class="tooltip">Load Shapes Input File (.csv)<span class="classic">A csv with one or more columns where every column is one low-resolution load shape. A header row is optional and auto-detected: with a header the column names label the load shapes, without one they are named loadshape_1, loadshape_2, etc. No timestamp column, no gaps, no negative values, and every column must be the same length. Caps: at most one year of readings (the row count that works out to depends on Input Resolution) and at most 20 columns.</span></label>
+				<div>{{ file_upload('inputDataFile', 'inputUIDisplay', 'inputDataFileName') }}</div>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Input Resolution<span class="classic">The time covered by each row of the uploaded csv. The upsampled output preserves the mean power over every uploaded reading exactly, and its own resolution comes from output_seconds in the model's config.yaml (default 1 second).</span></label>
+				<select id="inputResolution" name="inputResolution" value="{{allInputDataDict.inputResolution}}" required>
+					<option value="3600" {% if allInputDataDict.inputResolution == '3600' %}selected{% endif %}>1 hour</option>
+					<option value="1800" {% if allInputDataDict.inputResolution == '1800' %}selected{% endif %}>30 minutes</option>
+					<option value="900" {% if allInputDataDict.inputResolution == '900' %}selected{% endif %}>15 minutes</option>
+					<option value="300" {% if allInputDataDict.inputResolution == '300' %}selected{% endif %}>5 minutes</option>
+					<option value="60" {% if allInputDataDict.inputResolution == '60' %}selected{% endif %}>1 minute</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Start Timestamp<span class="classic">The time of the uploaded csv's first row, e.g. 2018-01-01 00:00:00. Used for the composition clock (appliance time-of-day and seasonal windows) and for the timestamps on the output figures.</span></label>
+				<input type="text" id="startTimestamp" name="startTimestamp" value="{{allInputDataDict.startTimestamp}}" required="required" placeholder="2018-01-01 00:00:00"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Input Units<span class="classic">The units of the uploaded csv. The composition itself runs in watts and the output file is converted back to these same units. Composition figures are always in watts.</span></label>
+				<select id="units" name="units" value="{{allInputDataDict.units}}" onchange="togglePuBase()" required>
+					<option value="pu" {% if allInputDataDict.units == 'pu' %}selected{% endif %}>p.u.</option>
+					<option value="W" {% if allInputDataDict.units == 'W' %}selected{% endif %}>watt (W)</option>
+					<option value="kW" {% if allInputDataDict.units == 'kW' %}selected{% endif %}>kilowatt (kW)</option>
+					<option value="MW" {% if allInputDataDict.units == 'MW' %}selected{% endif %}>megawatt (MW)</option>
+				</select>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">p.u. Base (kW)<span class="classic">Only used when Input Units is p.u.: the kW value that 1.0 p.u. represents. Enter one number for every column, or one comma-separated number per column (e.g. 5.5,3.2 for a two-column csv).</span></label>
+				<input type="text" id="puBaseKw" name="puBaseKw" value="{{allInputDataDict.get('puBaseKw', '1.0')}}" pattern="^\s*\d*\.?\d+(\s*,\s*\d*\.?\d+)*\s*$"/>
+			</div>
+			<div class="shortInput">
+				<label class="tooltip">Plot Window<span class="classic">How many days each composition figure shows, from the start of the output. Longer than the upload = the whole upload is shown. Only the figures are windowed - the output csv always covers everything. Windows too big to draw point-by-point switch to a gray min/max band of the composed total and hide the appliance layers.</span></label>
+				<select id="plotDays" name="plotDays" value="{{allInputDataDict.plotDays}}" required>
+					<option value="1" {% if allInputDataDict.plotDays == '1' %}selected{% endif %}>1 day</option>
+					<option value="7" {% if allInputDataDict.plotDays == '7' %}selected{% endif %}>1 week</option>
+					<option value="30" {% if allInputDataDict.plotDays == '30' %}selected{% endif %}>1 month</option>
+					<option value="365" {% if allInputDataDict.plotDays == '365' %}selected{% endif %}>1 year</option>
+					<option value="all" {% if allInputDataDict.plotDays == 'all' %}selected{% endif %}>Plot all</option>
+				</select>
+			</div>
+			<script>
+				function togglePuBase() {
+					document.getElementById('puBaseKw').readOnly = document.getElementById('units').value !== 'pu';
+				}
+				window.onload = togglePuBase;
+			</script>
+			{{ omfModelButtons }}
+		</form>
+	</div>
+	{{ omfRunDebugBlock }}
+	{% if modelStatus == 'finished' %}
+	<!-- Output tables, graphs, etc -->
+	<div id="output">
+		<p class="reportTitle">Upsampled Output File</p>
+		<div id="outputFileSummary" class="content" style="margin-top:0px">
+			<div class="shortInput">
+				<strong>File</strong>
+				<p><a href="/downloadModelData/{{allInputDataDict.user}}/{{allInputDataDict.modelName}}/{{allOutputDataDict.outputFileName}}">{{allOutputDataDict.outputFileName}}</a></p>
+			</div>
+			<div class="shortInput">
+				<strong>Size</strong>
+				<p>{{allOutputDataDict.outputSizeMB}} MB (&asymp;{{allOutputDataDict.uncompressedEstimateMB}} MB as plain csv)</p>
+			</div>
+			<div class="shortInput">
+				<strong>Load Shapes</strong>
+				<p>{{allOutputDataDict.outputColumns}} column(s)</p>
+			</div>
+			<div class="shortInput">
+				<strong>Rows</strong>
+				<p>{{allOutputDataDict.outputRows}} at {{allOutputDataDict.outputSeconds}} s resolution</p>
+			</div>
+			<div class="shortInput">
+				<strong>Time Span</strong>
+				<p>{{allOutputDataDict.startTimestamp}} &rarr; {{allOutputDataDict.endTimestamp}}</p>
+			</div>
+			<div class="shortInput">
+				<strong>Units</strong>
+				<p>{{allOutputDataDict.units}}</p>
+			</div>
+			<div class="wideInput">
+				<p style="font-size:0.8em">The file is an xz-compressed csv with one header row, one column per uploaded load shape, and values at 2 decimal places.</p>
+			</div>
+		</div>
+		<p class="reportTitle">Composition Diagnostics</p>
+		<div id="diagnosticsTable" class="tightContent">
+			<style>td, th {padding:7 0 5 20;text-align: left;font-size:0.8em; border: 1px solid #cccccc;}</style>
+			<table style="margin:5px;width:990px;">
+				<tr>
+					{% for heading in allOutputDataDict["diagnosticsHeadings"] %}
+					<th>{{ heading }}</th>
+					{% endfor %}
+				</tr>
+				{% for values in allOutputDataDict["diagnosticsValues"] %}
+				<tr>
+					{% for val in values %}
+					<td>{{ val }}</td>
+					{% endfor %}
+				</tr>
+				{% endfor %}
+			</table>
+		</div>
+		<div id="compositionFigures"></div>
+		<script>
+			var figureFileNames = allOutputData['figureFileNames'] || [];
+			var container = document.getElementById('compositionFigures');
+			figureFileNames.forEach(function(fileName, i) {
+				var title = document.createElement('p');
+				title.className = 'reportTitle';
+				title.textContent = 'Composition Figure — ' + allOutputData['loadShapeNames'][i] + ' ' + allOutputData['plotWindowDays'] + ' day(s), in watts';
+				var content = document.createElement('div');
+				content.className = 'tightContent';
+				var iframe = document.createElement('iframe');
+				iframe.style = 'width:1000px; height:620px; border:none;';
+				content.appendChild(iframe);
+				container.appendChild(title);
+				container.appendChild(content);
+				fetch('/downloadModelData/' + encodeURIComponent(allInputData['user']) + '/' + encodeURIComponent(allInputData['modelName']) + '/' + encodeURIComponent(fileName))
+					.then(function(response) {
+						if (!response.ok) throw new Error('HTTP ' + response.status);
+						return response.text();
+					})
+					.then(function(figureHtml) {
+						iframe.contentWindow.document.open();
+						iframe.contentWindow.document.write(figureHtml);
+						iframe.contentWindow.document.close();
+					})
+					.catch(function(err) {
+						content.innerHTML = '<p style="padding:8px;">Could not display ' + fileName + ' (' + err.message + '). Download it from the raw files list below instead.</p>';
+					});
+			});
+		</script>
+		{{ rawOutputFiles }}
+	</div>
+	{% endif %}
+</body>

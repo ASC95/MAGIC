@@ -1,0 +1,289 @@
+# - Per-appliance definitions for loadshape_upsampling
+#       source                      rae (1-second, house 1 or 2)
+#       house / channels            which house and which power_blk 
+#       start_w / end_w             thresholds in watts
+#       min_seconds / max_seconds   duration range 
+#       max_w                       drop events containing any sample above this 
+#       weight                      relative draw probability during placement
+#       num_instances               how many copies may run at once in one composed load (e.g. a physical house has 1 dryer)
+#       amplitude_jitter            each placed copy is scaled by uniform(1-j, 1+j) so repeats are not identical
+#       valid_daily_windows         list of ["HH:MM", "HH:MM"] pairs the event must start AND end inside (empty = always)
+#       valid_seasons               list of ["MM-DD", "MM-DD"] pairs the event must start inside (empty = all year)
+#   - Ranges
+#       start_w                     min: end_w 
+#                                   max: peak load
+#       end_w                       min: 0 
+#                                   max: start_w
+#       min_seconds                 min: min power consumption length
+#                                   max: max_seconds
+#       max_seconds                 min: min_seconds
+#                                   max: no max 
+#       max_w                       min: start_w 
+#                                   max: no max
+#       weight                      min: > 0 
+#                                   max: no max
+#       num_instances               min: 1
+#                                   max: 255 
+#       amplitude_jitter            min: 0.0 
+#                                   max: < 1.0
+#   - RAE watt levels were chosen from typical appliance ratings and the RAE panel labels.
+#     Run train.py and eyeball the printed length/peak stats (and --plot timelines) when tuning
+
+# ---- RAE house 1 (1-second) - the default library for 1-second output ----
+
+heat_pump:
+  source: rae
+  house: 1
+  channels: [sub13, sub14]
+  start_w: 300
+  end_w: 150
+  min_seconds: 180
+  max_seconds: 14400
+  max_w: null
+  weight: 3.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+furnace_hot_water:
+  source: rae
+  house: 1
+  channels: [sub11]
+  start_w: 120
+  end_w: 60
+  min_seconds: 120
+  max_seconds: 10800
+  max_w: null
+  weight: 1.5
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+oven:
+  source: rae
+  house: 1
+  channels: [sub1, sub2]
+  start_w: 800
+  end_w: 300
+  min_seconds: 120
+  max_seconds: 14400
+  max_w: null
+  weight: 1.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+dryer:
+  source: rae
+  house: 1
+  channels: [sub5, sub6]
+  start_w: 1000
+  end_w: 400
+  min_seconds: 300
+  max_seconds: 10800
+  max_w: null
+  weight: 1.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+fridge:
+  source: rae
+  house: 1
+  channels: [sub8]
+  start_w: 80
+  end_w: 30
+  min_seconds: 120
+  max_seconds: 7200
+  max_w: null
+  weight: 2.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+washer:
+  source: rae
+  house: 1
+  channels: [sub9]
+  start_w: 100
+  end_w: 20
+  min_seconds: 120
+  max_seconds: 7200
+  max_w: null
+  weight: 0.5
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+dishwasher:
+  source: rae
+  house: 1
+  channels: [sub10]
+  start_w: 150
+  end_w: 50
+  min_seconds: 300
+  max_seconds: 10800
+  max_w: null
+  weight: 0.8
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+kitchen_plugs:
+  source: rae
+  house: 1
+  channels: [sub3, sub4]
+  start_w: 400
+  end_w: 100
+  min_seconds: 20
+  max_seconds: 3600
+  max_w: null
+  weight: 0.8
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+entertainment:
+  source: rae
+  house: 1
+  channels: [sub19]
+  start_w: 60
+  end_w: 30
+  min_seconds: 300
+  max_seconds: 28800
+  max_w: null
+  weight: 1.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+bathrooms:
+  source: rae
+  house: 1
+  channels: [sub20]
+  start_w: 80
+  end_w: 40
+  min_seconds: 120
+  max_seconds: 7200
+  max_w: null
+  weight: 0.8
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+misc_plugs:
+  source: rae
+  house: 1
+  channels: [sub23]
+  start_w: 40
+  end_w: 10
+  min_seconds: 30
+  max_seconds: 7200
+  max_w: null
+  weight: 0.5
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+# - RAE house 2 (1-second) - second home
+# -   Has different physical appliances than house 1 (different fridge/dryer/washer/dishwasher models)
+dryer_h2:
+  source: rae
+  house: 2
+  channels: [sub4, sub5]
+  start_w: 1000
+  end_w: 400
+  min_seconds: 300
+  max_seconds: 10800
+  max_w: null
+  weight: 1.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+vacuum_h2:
+  source: rae
+  house: 2
+  channels: [sub7]
+  start_w: 400
+  end_w: 100
+  min_seconds: 20
+  max_seconds: 3600
+  max_w: null
+  weight: 0.3
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+boiler_h2:
+  source: rae
+  house: 2
+  channels: [sub8]
+  start_w: 100
+  end_w: 50
+  min_seconds: 120
+  max_seconds: 14400
+  max_w: null
+  weight: 1.5
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+washer_h2:
+  source: rae
+  house: 2
+  channels: [sub10]
+  start_w: 100
+  end_w: 20
+  min_seconds: 120
+  max_seconds: 7200
+  max_w: null
+  weight: 0.5
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+fridge_h2:
+  source: rae
+  house: 2
+  channels: [sub11]
+  start_w: 80
+  end_w: 30
+  min_seconds: 120
+  max_seconds: 7200
+  max_w: null
+  weight: 2.0
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []
+
+dishwasher_h2:
+  source: rae
+  house: 2
+  channels: [sub19]
+  start_w: 150
+  end_w: 50
+  min_seconds: 300
+  max_seconds: 10800
+  max_w: null
+  weight: 0.8
+  num_instances: 1
+  amplitude_jitter: 0.10
+  valid_daily_windows: []
+  valid_seasons: []

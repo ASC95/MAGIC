@@ -1,0 +1,80 @@
+# - This file holds every parameter for loadshape_upsampling so that behavior can be changed without editing code
+active_appliances:
+  - heat_pump
+  - furnace_hot_water
+  - oven
+  - dryer
+  - fridge
+  - washer
+  - dishwasher
+  - kitchen_plugs
+  - entertainment
+  - bathrooms
+  - misc_plugs
+  - dryer_h2
+  - vacuum_h2
+  - boiler_h2
+  - washer_h2
+  - fridge_h2
+  - dishwasher_h2
+
+# - The resolution of the output, in seconds
+output_seconds: 1
+
+# - The interval over which the output must preserve the target's mean power
+constraint_seconds: 900
+
+# - A higher fill_fraction allows more/larger events to be placed above the smooth base load. A lower fill_fraction allows fewer events to be placed above
+#   the smooth base load and increases the proportion of the interval that is filled by the base load
+fill_fraction: 0.9
+
+# - Sets the base floor power level for the current interval to be some quantile (e.g. lowest 5th quantile) of the mean power readings of the intervals
+#   around the current interval. A high quantile sets a higher base floor power level
+base_quantile: 0.05
+
+# - An absolute cap on the base floor, in watts, for single houses
+base_floor_w: 100
+
+# - The the rolling window that the base_quantile is computed over
+base_window_seconds: 86400
+
+# - How many consecutive failed placement attempts retire an appliance
+max_consecutive_rejects: 200
+
+# - A cap on total placed events to prevent program crashes
+max_events: 500000
+
+# - How many worker processes can upsample loads
+parallel_workers: 4
+
+# - The beginning and end of the lower-resolution load shape require special treatment. Pad the start of the load shape and the end of the load shape with
+#   extra time, and place events as normal. When finished placing events, remove the padded extra time. Now the start won't ramp up slowly and the end
+#   won't decrease slowly. The very first and very last intervals will look similar to the other intervals
+compose_padding_seconds: 28800
+
+# - The seed for reproducability 
+random_seed: 0
+
+# - Downsample house 2 into a lower-resolution load shape, then use appliance events from house 1 to reconstruct house 2. If house 2 were allowed to use
+#   its own events to reconstruct itself, it wouldn't be possible to accurately evaluate the upsampling process
+validate_truth_source: rae_house2_mains
+
+# - Validate the upsampling process with 14 days of data instead of the entire 2 months in the RAE dataset 
+validate_window_days: 14
+
+# - Define the SMART-DS dataset that we want to upsample
+smartds_dataset_path: 2018/GSO/rural
+smartds_scenario: base_timeseries
+smartds_substation: rhs2_1247
+smartds_circuit: rhs2_1247--rdt1262 # rhs2_1247--rdt1264
+smartds_year: 2018
+
+# - Show 2 days worth of the upsampled load shape in the plotly graph
+plot_window_days: 2
+
+# - Prevent the plotly HTML file from getting too large. It already can hit 50 - 100 MB with this limit. Instead of plotting individual points, plot_utils
+#   may switch to plotting a band using the min and max values of a plotting interval
+aggregate_plot_max_points: 2000000
+
+# - Show 48 hours of the actual appliance load shape with overlaid extracted shapelets when viewing the training/extraction graph
+train_plot_hours: 48

@@ -58,4 +58,5 @@ from omf.models import wildfireAnticipation
 from omf.models import evRange
 from omf.models import hostingExpansion
 from omf.models import pvWatts
+from omf.models import upsampler
 #from omf.models import microgridPlan
